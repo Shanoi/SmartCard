@@ -11736,6 +11736,34 @@ void main(void)
 
 	fopen_s(&trace,"trace.txt","w+");
 	test();
+
+	// TODO
+	// Etape 5 : détection carte iso 14443 Type A et Type B
+	// APDU Type 4// select application "D2760000850101" --> On doit vérifier si la carte est bien là avant de lire
+	// APDU Type 3 // select EF "CC File"
+	// APDU type 2 // - read binary "CC File" - 15 Octets
+	// APDU type 2 // - read binary "CC File" - reste à lire si nécessaire
+	// - Extraction Max Le
+	// - Extraction Max longueur du NDEF file
+	// - Extraction LID du fichier NDEF
+	// APDU type 3 // Select EF "NDEF"
+	// APDU type 2 // - Read Binary "NDEF" - Lecture complète de fichier
+
+	// Utiliser les fonctions du SDK lecteur
+	// Faire l'encapsulation de l'APDU --> Dans CSC ISO Command
+	// Diapo 89
+	// Faire éventuellement des boucles car on ne pourra peut-être pas lire tout d'un seul coup
+	// Une fois qu'on a 15 octets regarder si on a plus à lire ?
+	// Select appli
+	// Select ...
+
+	// Etape 6 : décodage du fichier NDEF
+	//0022
+	//	D102/1D
+	//	5270
+	//	9101/11/8801-70617261676F6E2D726669642E62F6D
+	//	5101/04/5400-504944
+
 	fclose (trace);
 	printf("Press a Key.\n");
 	_getch();
