@@ -11739,15 +11739,15 @@ void main(void)
 
 	// TODO
 	// Etape 5 : détection carte iso 14443 Type A et Type B
-	// APDU Type 4// select application "D2760000850101" --> On doit vérifier si la carte est bien là avant de lire
-	// APDU Type 3 // select EF "CC File"
-	// APDU type 2 // - read binary "CC File" - 15 Octets
-	// APDU type 2 // - read binary "CC File" - reste à lire si nécessaire
+	// APDU Case 4// select application "D2760000850101" --> On doit vérifier si la carte est bien là avant de lire
+	// APDU Case 3 // select EF "CC File"
+	// APDU Case 2 // - read binary "CC File" - 15 Octets
+	// APDU Case 2 // - read binary "CC File" - reste à lire si nécessaire
 	// - Extraction Max Le
 	// - Extraction Max longueur du NDEF file
 	// - Extraction LID du fichier NDEF
-	// APDU type 3 // Select EF "NDEF"
-	// APDU type 2 // - Read Binary "NDEF" - Lecture complète de fichier
+	// APDU Case 3 // Select EF "NDEF"
+	// APDU Case 2 // - Read Binary "NDEF" - Lecture complète de fichier
 
 	// Utiliser les fonctions du SDK lecteur
 	// Faire l'encapsulation de l'APDU --> Dans CSC ISO Command
