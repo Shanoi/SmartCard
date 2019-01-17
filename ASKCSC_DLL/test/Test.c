@@ -11839,12 +11839,136 @@ void read(void)
 	ln = 13;
 
 	ret = CSC_ISOCommand(tx, ln, tx, &ln);
-	if (ret != RCSC_Ok)
+	if (ret != RCSC_Ok && ((tx[1] == 0x90 && tx[2] == 0x00)
+		|| (tx[1] == 0x62 && tx[2] == 0x00 && tx[3] == 0x90 && tx[4] == 0x00))) // TODO Vérifier qu'on a 9000 ou l'autre truc
 	{
-		printf("\nError Sending commande in transparent Mode. code : %d", ret);
+		printf("\nError selecting application. code : %d", ret);
 		SetErrorTo1();
 		CSC_AntennaOFF();
 		CSC_Close();
+	}
+	else
+	{
+		tx[0] = 0x00;
+		tx[1] = 0xA4;
+		tx[2] = 0x00;
+		tx[3] = 0x0C;
+		tx[4] = 0x02;
+		tx[5] = 0xE1;
+		tx[6] = 0x03;
+		ln = 7;
+
+		ret = CSC_ISOCommand(tx, ln, tx, &ln);
+
+		if (ret != RCSC_Ok)
+		{
+			printf("\nError selecting file. code : %d", ret);
+			SetErrorTo1();
+			CSC_AntennaOFF();
+			CSC_Close();
+		}
+		else
+		{
+			tx[0] = 0x00;
+			tx[1] = 0xB0;
+			tx[2] = 0x00;
+			tx[3] = 0x00;
+			tx[4] = 0x0F;
+			ln = 5;
+
+			ret = CSC_ISOCommand(tx, ln, tx, &ln);
+
+			if (ret != RCSC_Ok)
+			{
+				printf("\nError reading file. code : %d", ret);
+				SetErrorTo1();
+				CSC_AntennaOFF();
+				CSC_Close();
+			}
+			else
+			{
+				byte maxLe = tx[5];
+				byte bufflen[2] = { tx[12], tx[13] };
+
+				int lenBuff = bufflen[1] + (bufflen[0] << 8);
+				int maxLeInt = maxLe;
+
+				tx[0] = 0x00;
+				tx[1] = 0xA4;
+				tx[2] = 0x00;
+				tx[3] = 0x0C;
+				tx[4] = 0x02;
+				tx[5] = tx[10];
+				tx[6] = tx[11];
+				ln = 7;
+
+				ret = CSC_ISOCommand(tx, ln, tx, &ln);
+
+				if (ret != RCSC_Ok)
+				{
+					printf("\nError selecting NDEF file. code : %d", ret);
+					SetErrorTo1();
+					CSC_AntennaOFF();
+					CSC_Close();
+				}
+				else
+				{
+
+					int maxIndex = lenBuff / maxLeInt;
+					
+					byte* NDEFdata = malloc(lenBuff);
+
+					if (!NDEFdata)
+					{
+						printf("NDEF date malloc failed");
+						exit(1);
+					}
+
+					for (size_t i = 0; i < maxIndex; i++)
+					{
+
+						tx[0] = 0x00;
+						tx[1] = 0xB0;
+						tx[2] = 0x00;
+						tx[3] = 0x00;
+						tx[4] = maxLe;
+						ln = 5;
+
+						ret = CSC_ISOCommand(tx, ln, tx, &ln);
+
+						if (ret != RCSC_Ok)
+						{
+							printf("\nError reading NDEF file. code : %d", ret);
+							SetErrorTo1();
+							CSC_AntennaOFF();
+							CSC_Close();
+						}
+
+					}
+
+					tx[0] = 0x00;
+					tx[1] = 0xB0;
+					tx[2] = 0x00;
+					tx[3] = 0x00;
+					tx[4] = maxLe;
+					ln = 5;
+
+					ret = CSC_ISOCommand(tx, ln, tx, &ln);
+
+					if (ret != RCSC_Ok)
+					{
+						printf("\nError reading NDEF file. code : %d", ret);
+						SetErrorTo1();
+						CSC_AntennaOFF();
+						CSC_Close();
+					}
+
+
+				}
+			}
+
+		}
+
 	}
 
 }
@@ -11866,7 +11990,7 @@ void main(void)
 	read();
 	// TODO
 	// Etape 5 : détection carte iso 14443 Type A et Type B
-	// APDU Type 4// select application "D2760000850101" --> On doit vérifier si la carte est bien là avant de lire vérifier que les deux derniers octets sont sw = 0x9000
+	// APDU Type 4// select application "D2760000850101" --> On doit vérifier si la carte est bien là avant de lire vérifier que les deux derniers octets sont sw = 0x039000 . Pour l'autre carte on a 0562009000
 	// APDU Type 3 // select EF "CC File"
 	// APDU type 2 // - read binary "CC File" - 15 Octets
 	// APDU type 2 // - read binary "CC File" - reste à lire si nécessaire
