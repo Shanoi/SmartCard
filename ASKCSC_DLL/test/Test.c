@@ -11788,8 +11788,8 @@ void main(void)
 	// - Extraction Max Le
 	// - Extraction Max longueur du NDEF file
 	// - Extraction LID du fichier NDEF
-	// APDU type 3 // Select EF "NDEF"
-	// APDU type 2 // - Read Binary "NDEF" - Lecture complète de fichier
+	// APDU Case 3 // Select EF "NDEF"
+	// APDU Case 2 // - Read Binary "NDEF" - Lecture complète de fichier
 
 	// Utiliser les fonctions du SDK lecteur
 	// Faire l'encapsulation de l'APDU --> Dans CSC ISO Command
