@@ -11722,6 +11722,48 @@ void test(void)
 
 }
 
+void read(void)
+{
+
+	// Version CSC / Reset CSC
+	// Enter hunt phase parameters
+	// Enter hunt phase
+	//Select Appli
+	// Select file 0xE103
+	// Read binary 15 octets
+			// -> Read binary du reste si nécessaire
+	// --> Max le (1)
+	// --> Max lc
+	// --> LID du fichier NDEF (2)
+	// --> Max size fichier NDEF (3)
+
+	// Select file "NDEF" (2)
+	// Read binary (1) (3)
+
+	unsigned char tx[256];
+	DWORD ret, Choice;
+	BYTE COM;
+	BYTE	status;
+	DWORD tm, ln;
+	sCARD_SearchExt SearchStruct;
+	DWORD search_mask;
+	sCARD_SearchExt* Search = &SearchStruct;
+
+	// ISO 14443 Type A et B
+	Search->CONT = 0;
+	Search->ISOB = 1;
+	Search->ISOA = 1;
+	Search->TICK = 0;
+	Search->INNO = 0;
+	Search->MIFARE = 0;
+	Search->MV4k = 0;
+	Search->MV5k = 0;
+	search_mask = SEARCH_MASK_ISOA | SEARCH_MASK_ISOB;
+
+	CSC_ISOCommand()
+
+}
+
 // ****************************
 // main function 
 void main(void)
@@ -11739,7 +11781,7 @@ void main(void)
 
 	// TODO
 	// Etape 5 : détection carte iso 14443 Type A et Type B
-	// APDU Type 4// select application "D2760000850101" --> On doit vérifier si la carte est bien là avant de lire
+	// APDU Type 4// select application "D2760000850101" --> On doit vérifier si la carte est bien là avant de lire vérifier que les deux derniers octets sont sw = 0x9000
 	// APDU Type 3 // select EF "CC File"
 	// APDU type 2 // - read binary "CC File" - 15 Octets
 	// APDU type 2 // - read binary "CC File" - reste à lire si nécessaire
@@ -11763,6 +11805,11 @@ void main(void)
 	//	5270
 	//	9101/11/8801-70617261676F6E2D726669642E62F6D
 	//	5101/04/5400-504944
+
+
+	// Enter hunt phase parameters --> autoselect = 0
+	// === > Désactivation de l'envoie SELECT APPLI automatique lors de la phase anticollision
+	// Mettre après version CSC autoselect à 0
 
 	fclose (trace);
 	printf("Press a Key.\n");
