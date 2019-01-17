@@ -11823,14 +11823,20 @@ void read(void)
 
 
 	//D2 76 00 00 85 01 01
-	tx[0] = 0xD2;
-	tx[1] = 0x76;
-	tx[2] = 0x00;
+	tx[0] = 0x00;
+	tx[1] = 0xA4;
+	tx[2] = 0x04;
 	tx[3] = 0x00;
-	tx[4] = 0x85;
-	tx[5] = 0x01;
-	tx[6] = 0x01;
-	ln = 7;
+	tx[4] = 0x07;
+	tx[5] = 0xD2;
+	tx[6] = 0x76;
+	tx[7] = 0x00;
+	tx[8] = 0x00;
+	tx[9] = 0x85;
+	tx[10] = 0x01;
+	tx[11] = 0x01;
+	tx[12] = 0x00;
+	ln = 13;
 
 	ret = CSC_ISOCommand(tx, ln, tx, &ln);
 	if (ret != RCSC_Ok)
