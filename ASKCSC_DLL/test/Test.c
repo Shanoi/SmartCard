@@ -42,6 +42,8 @@ $Log:   W:/Lecteurs/DLL Askcsc/Sources/archives/test/Test.c-arc  $
 #include "..\\askcsc.h"
 #include "Test.h"
 
+#include "select.h"
+
 int Error;
 BYTE KVCSAM;
 
@@ -110,7 +112,7 @@ void SetErrorTo1(void)
 
 
 /****************************************************************/
-void Mess(LPSTR text, DWORD ret)
+static void Mess(LPSTR text, DWORD ret)
 /*****************************************************************
   Display error function
 
@@ -11973,8 +11975,10 @@ void read(void)
 
 }
 
+#ifdef _TEST_
+
 // ****************************
-// main function 
+// main function
 void main(void)
 {
 	//DWORD ret;
@@ -12025,4 +12029,4 @@ void main(void)
 	_getch();
 }
 
-
+#endif //_TEST_
