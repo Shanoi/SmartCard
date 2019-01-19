@@ -1,131 +1,10 @@
-/*****************************************************************
-	SMART CARD TP IMPLEMENTATION FILE
-
-	Authors : BOULET Olivier / LARA Jérémy
-*****************************************************************/
-
-/*****************************************************************
-	INSTRUCTIONS
-
-	Utilisation des fonctions de la DLL Askcsc. Documentation dans
-	askcsc.h.
-
-	- Etape 1 - Détection du lecteur CSC (Contacless Smart Cards) :
-		CSC_SearchCSC();
-		Code de retour attendu : RCSC_Ok
-	- Etape 2 - Réinitialiser le lecteur CSC :
-		CSC_ResetCSC();
-		Code de retour attendu : RCSC_Ok
-	- Etape 3 - Si l'étape 2 a bien fonctionnée, on veut vérifier
-	la version du lecteur CSC :
-		CSC_VersionCSC();
-		Code de retour attendu : RCSC_Ok
-		Affichage de la version
-
-	| Remarque : même sans poser de carte sur le lecteur CSC, les
-	| étapes 1 à 3 fonctionneront puisqu'elles n'impliquent pas
-	| encore de lecture ou d'écriture sur des fichiers.
-
-	- Etape 4 - Mise à jour de la configuration du buffer pour les
-	commandes d'envoi/réception de données :
-		CSC_EHP_PARAMs_EXT(1, 1, 0, 0, 0, 0, 0, 0, 0);
-		Code de retour attendu : RCSC_Ok
-	- Etape 5 - Passage en mode recherche du lecteur CSC :
-		CSC_SearchCardExt(...);
-		Code de retour attendu : RCSC_Ok
-
-		L'appel à cette fonction est nécessaire au moins une fois
-		pour faire passer l'appareil en mode recherche. Il faut
-		préciser à l'aide des paramètres quels types de cartes on
-		recherche.
-	- Etape 6 - Sélection de l'application (D2760000850101) par
-	envoi de commande :
-		# CLA:00 INS:A4 P1:04 P2:00 Lc:07 Data:D2760000850101 Le:00
-		CSC_ISOCommand(...);
-		Code de retour attendu : RCSC_Ok
-
-		Permet de sélectionner l'application NDEF Tag (nécessaire
-		pour pouvoir lire / écrire sur des cartes de ce type là ?).
-	- Etape 7 - Sélection du fichier CC (Capability Container) :
-		# CLA:00 INS:A4 P1:00 P2:0C Lc:02 Data:E103 Le:-
-		CSC_ISOCommand(...);
-		Code de retour attendu : RCSC_Ok
-	- Etape 8 - Lecture des données binaires sur le fichier CC
-	(15 octets) :
-		# CLA:00 INS:B0 P1: 00 P2:00 Lc:- Data:- Le:0F
-		CSC_ISOCommand(...);
-		Code de retour attendu : RCSC_Ok
-
-		Une fois les données lues, il faut les parser et en extraire
-		les informations nécessaires pour l'étape suivante.
-
-		Il faut récupérer le MaxLe (Maximum lecture), MaxLc
-		(Maximum écriture), Maximum NDEF File size (Maximum à lire),
-		NDEF ID (Identifiant pour effectuer la sélection).
-	- Etape 9 - Sélection du fichier NDEF :
-		# CLA:00 INS:A4 P1:00 P2:0C Lc:02 Data:File ID Le:-
-		CSC_ISOCommand(...);
-		Code de retour attendu : RCSC_Ok
-
-		Le File ID est celui récupéré dans l'étape 8.
-	- Etape 10 - Lecture des données binaires du fichier NDEF :
-		# CLA:00 INS:B0 P1: Offset P2:Offset Lc:- Data:- Le:Length
-		CSC_ISOCommand(...);
-		Code de retour attendu : RCSC_Ok
-
-		L'Offset sera déterminer sur deux octets et évoluera au
-		cours de la lecture (via une boucle). La Length correspond
-		au MaxLe qui a été extrait dans l'étape 8.
-	- Etape 11 - décodage du fichier NDEF :
-		0022
-			D102/1D
-				5270
-				9101/11/8801-70617261676F6E2D726669642E62F6D
-				5101/04/5400-504944
-
-	Enter hunt phase parameters --> autoselect = 0
-	=== > Désactivation de l'envoie SELECT APPLI automatique lors de la phase anticollision
-	Mettre après version CSC autoselect à 0
-*****************************************************************/
-
-/*****************************************************************
-	ACRONYMS & DEFINITIONS
-
-	APDU   - Application Protocol Data Unit
-	C-APDU - Command APDU
-	CC     - Capability Container
-	Lc     - Length command
-	Le     - Length expected
-	MLc    - Maximum data Length C-APDU
-	MLe    - Maximum data Length R-APDU
-	NDEF   - NFC Data Exchange Format
-	R-APDU - Response APDU
-*****************************************************************/
-
-/*****************************************************************
-	INCLUDE
-*****************************************************************/
-
-// Standard C Library
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-
-// WinAPI
 #include <windows.h>
-
-// MS-DOS
 #include <conio.h>
-
-// Askcsc DLL
 #include "../askcsc.h"
-
-// Custom
 #include "select.h"
-
-/*****************************************************************
-	DEFINE & GLOBAL VARIABLES
-*****************************************************************/
 
 #define FAILURE 0
 #define SUCCESS 1
@@ -135,11 +14,7 @@
 static FILE *trace;
 static int step = 1;
 
-/*****************************************************************
-	FUNCTIONS
-*****************************************************************/
-
-void execute(void);
+static void execute(void);
 static char search_csc(DWORD* result);
 static char reset_csc(DWORD* result, unsigned char io_data[]);
 static char version_csc(DWORD* result, unsigned char io_data[]);
@@ -239,41 +114,7 @@ static void display_data_hex(unsigned char data[], DWORD length)
 	printf(", Length=%d]\n", length);
 }
 
-// Actually useless...
-static long hex_to_dec(char* hex)
-{
-	long base = 1; // 16^0 = 1;
-	long dec = 0;
-	int length = strlen(hex);
-	int stop = 0;
-
-	if (length > 2 && hex[0] == '0' && hex[1] == 'x')
-	{
-		stop += 2;
-	}
-
-	for (int i = length - 1; i >= stop; --i)
-	{
-		if (hex[i] >= '0' && hex[i] <= '9')
-		{
-			dec += (hex[i] - '0') * base;
-		}
-		else if (hex[i] >= 'a' && hex[i] <= 'f')
-		{
-			dec += (hex[i] - 'a') * base;
-		}
-		else if (hex[i] >= 'A' && hex[i] <= 'F')
-		{
-			dec += (hex[i] - 'A') * base;
-		}
-
-		base *= 16; // power replacement;
-	}
-
-	return dec;
-}
-
-void execute(void)
+static void execute(void)
 {
 	DWORD result;
 	DWORD length;
@@ -286,7 +127,6 @@ void execute(void)
 
 	unsigned char io_data[256];
 
-	// ISO 14443 Type A and B
 	search->CONT = 0;
 	search->ISOB = 1;
 	search->ISOA = 1;
@@ -297,13 +137,10 @@ void execute(void)
 	search->MV5k = 0;
 	search_mask = SEARCH_MASK_ISOA | SEARCH_MASK_ISOB;
 
-	// Search & Reset CSC, Configure buffer & Search Card
 	if (search_csc(&result) && reset_csc(&result, io_data) &&
 		configure_buffer(&result) &&
 		search_card(&result, search, search_mask, 0x01, 100, &COM, &length, io_data))
 	{
-		// Select Application
-		// Length:13; CLA:00 INS:A4 P1:04 P2:00 Lc:07 Data:D2760000850101 Le:00
 		if (!nfc_forum_type_4_select("Application", &result, &length, io_data, 13,
 			0x00, 0xA4, 0x04, 0x00, 0x07, 0xD2, 0x76, 0x00, 0x00, 0x85, 0x01, 0x01, 0x00) ||
 			(io_data[1] != 0x90 && io_data[2] != 0x00) ||
@@ -312,12 +149,9 @@ void execute(void)
 			return;
 		}
 
-		// Select & Read CC File
-		// Length:7; CLA:00 INS:A4 P1:00 P2:0C Lc:02 Data:E103 Le:-
 		if (nfc_forum_type_4_select("CC", &result, &length, io_data, 7,
 			0x00, 0xA4, 0x00, 0x0C, 0x02, 0xE1, 0x03))
 		{
-			// Length:5; CLA:00 INS:B0 P1:00 P2:00 Lc:- Data:- Le:0F
 			if (nfc_forum_type_4_read_binary("CC", &result, &length, io_data, 0x00, 0xB0, 0x00, 0x00, 0x0F))
 			{
 				byte MLe_byte = io_data[5];
@@ -334,14 +168,13 @@ void execute(void)
 					buffer_length_bytes[1], buffer_length_bytes[2], buffer_length,
 					io_data[10], io_data[11]);
 
-				// Select & Read NDEF File
-				// Length:7; CLA:00 INS:A4 P1:00 P2:0C Lc:02 Data:E104 Le:-
 				if (nfc_forum_type_4_select("NDEF", &result, &length, io_data, 7,
 					0x00, 0xA4, 0x00, 0x0C, 0x02, io_data[10], io_data[11]))
 				{
 					int read_cycles = buffer_length / MLe;
 					int offset = 0;
 					byte* NDEF_data = malloc(sizeof(byte) * buffer_length);
+					NDEF_data = "";
 
 					if (!NDEF_data)
 					{
@@ -355,21 +188,19 @@ void execute(void)
 					{
 						offset = MLe * i;
 
-						// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
 						if (!nfc_forum_type_4_read_binary("NDEF", &result, &length, io_data,
 							0x00, 0xB0, (byte)(offset >> 8), (byte)offset, MLe))
 						{
 							return;
 						}
 
-						strcpy((char*)NDEF_data, (char*)io_data);
+						strcat(NDEF_data, io_data);
 						display_data_hex(NDEF_data, MLe);
 						NDEF_data += MLe;
 					}
 
 					offset = MLe * read_cycles;
 
-					// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
 					if (!nfc_forum_type_4_read_binary("NDEF", &result, &length, io_data,
 						0x00, 0xB0, (byte)(offset >> 8), (byte)offset, MLe))
 					{
@@ -406,10 +237,6 @@ static char search_csc(DWORD* result)
 	}
 }
 
-/*
- * Remark: apparently, resetting the CSC is useless since CSC_SearchCSC()
- * already resets it according to its documentation
- */
 static char reset_csc(DWORD* result, unsigned char data[])
 {
 	*result = CSC_ResetCSC();
@@ -540,7 +367,7 @@ static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD*
 	}
 }
 
-#ifdef _SMART_CARDS_
+#ifdef _SMART_CARDS_PROD_
 
 int main(void)
 {
@@ -552,4 +379,4 @@ int main(void)
 	return 0;
 }
 
-#endif //_SMART_CARDS_
+#endif //_SMART_CARDS_PROD_
