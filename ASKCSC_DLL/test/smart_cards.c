@@ -124,16 +124,55 @@
 #include "select.h"
 
 /*****************************************************************
-	DEFINE & GLOBAL VARIABLES
+	DEFINE & GLOBAL VARIABLES, STRUCTURES, ENUM...
 *****************************************************************/
 
 #define FAILURE 0
 #define SUCCESS 1
+
 #define DO_NOT_FREE 0
-#define FREE 1
+#define FREE        1
+
+#define YES "Yes"
+#define NO  "No"
 
 static FILE *trace;
 static int step = 1;
+
+enum TNF {
+	Empty, NFC_Forum_Type, Media_Type, Absolute_URI,
+	NFC_Forum_External_Type, TNF_Unknown, Unchanged, Reserved
+};
+
+/*
+ * mb: 1-bit Message Begin, useful when interpreted considering the ME flag's value.
+ * me            : 1-bit Message End, useful in case of chunked payloads.
+ * cf            : 1-bit Chunk Flag, set when this is the first chunk of a chunked NDEF message.
+ * sr            : 1-bit Short Record, set when the record is short (8-bits payload length)
+ * il            : 1-bit ID Lenght, set if the 8-bits ID field is present in the record.
+ * tnf           : 3-bits Type Name Format, indicates the structure of the value of the type
+ *				   field. TNF enum associates names to values.
+ * type_length   : 8-bits unsigned integer specifying the length in octet of the type field.
+ * payload_length: if SR, 8-bits, 32-bits otherwise.
+ * id_length     : 8-bits unsigned integer specifying the length in octet of the id field.
+ * type          : identifier describing the type of the payload, format depends on TNF flag.
+ * id            : uniqueness message identifier.
+ * payload       : actual data of length payload_length.
+*/
+typedef struct record {
+	char mb;
+	char me;
+	char cf;
+	char sr;
+	char il;
+	char tnf;
+	unsigned char type_length;
+	unsigned int payload_length;
+	unsigned char id_length;
+	byte* type;
+	byte* id;
+	byte* payload;
+} Record;
 
 /*****************************************************************
 	FUNCTIONS
@@ -141,17 +180,23 @@ static int step = 1;
 
 void execute(void);
 static char search_csc(DWORD* result);
-static char reset_csc(DWORD* result, unsigned char io_data[]);
-static char version_csc(DWORD* result, unsigned char io_data[]);
+static char reset_csc(DWORD* result, byte io_data[]);
+static char version_csc(DWORD* result, byte io_data[]);
 static char configure_buffer(DWORD* result);
 static char search_card(
 	DWORD* result, sCARD_SearchExt* search, DWORD search_mask,
 	BYTE forget, BYTE timeout, LPBYTE COM, LPDWORD length, BYTE* data
 );
-static char nfc_forum_type_4_select(const char* info, DWORD* result, DWORD* length, unsigned char io_data[], int len,
+static char nfc_forum_type_4_command(const char* command_type, const char *command_info,
+	DWORD* result, DWORD* length, byte io_data[], int len,
+	byte cla, byte ins, byte p1, byte p2, ...);
+static char nfc_forum_type_4_select(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
 	byte cla, byte ins, byte p1, byte p2, byte lc, ...);
-static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD* length, unsigned char io_data[],
+static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD* length, byte io_data[],
 	byte cla, byte ins, byte p1, byte p2, byte le);
+static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
+	byte cla, byte ins, byte p1, byte p2, byte lc, ...);
+static Record read_payload(byte* payload, int length);
 
 static char mess(char* text, char to_free, DWORD result)
 {
@@ -227,7 +272,40 @@ static char mess(char* text, char to_free, DWORD result)
 	return FAILURE;
 }
 
-static void display_data_string(unsigned char* data, DWORD length)
+static void display_TNF(char tnf)
+{
+	switch (tnf)
+	{
+	case Empty:
+		printf("Empty(%d)", Empty);
+		break;
+	case NFC_Forum_Type:
+		printf("NFC Forum Type(%d)", NFC_Forum_Type);
+		break;
+	case Media_Type:
+		printf("Media Type(%d)", Media_Type);
+		break;
+	case Absolute_URI:
+		printf("Absolute URI(%d)", Absolute_URI);
+		break;
+	case NFC_Forum_External_Type:
+		printf("NFC Forum External Type(%d)", NFC_Forum_External_Type);
+		break;
+	case TNF_Unknown:
+		printf("Unknown(%d)", TNF_Unknown);
+		break;
+	case Unchanged:
+		printf("Unchanged(%d)", Unchanged);
+		break;
+	case Reserved:
+		printf("Reserved(%d)", Reserved);
+		break;
+	default:
+		return;
+	}
+}
+
+static void display_data_string(byte* data, DWORD length)
 {
 	printf("\t[Data STR=");
 
@@ -239,7 +317,7 @@ static void display_data_string(unsigned char* data, DWORD length)
 	printf(", Length=%d]\n", length);
 }
 
-static void display_data_hex(unsigned char* data, DWORD length)
+static void display_data_hex(byte* data, DWORD length)
 {
 	printf("\t[Data HEX=0x");
 
@@ -249,6 +327,51 @@ static void display_data_hex(unsigned char* data, DWORD length)
 	}
 
 	printf(", Length=%d]\n", length);
+}
+
+static void display_records(Record* records, DWORD length)
+{
+	for (unsigned int i = 0; i < length; ++i, ++records)
+	{
+		printf("[Record:\n\t--- Flags ---\n\t- MB: %s\n\t- ME: %s\n\t- CF: %s\n\t- SR: %s\n\t- IL: %s\n\t- TNF: ",
+			records->mb ? YES : NO, records->me ? YES : NO, records->cf ? YES : NO,
+			records->sr ? YES : NO, records->il ? YES : NO);
+		display_TNF(records->tnf);
+		printf("\n\t- Type Length: %d\n\t- Payload Length: %d\n\t",
+			records->type_length, records->payload_length);
+
+		if (records->il)
+		{
+			printf("- ID Length: %d\n\t- ID: 0x", records->id_length);
+
+			for (unsigned int j = 0; j < records->id_length; ++j)
+			{
+				printf("%02X", records->id[j]);
+			}
+		}
+
+		if (records->type_length)
+		{
+			printf("\n\t- Type: 0x");
+
+			for (unsigned int j = 0; j < records->type_length; ++j)
+			{
+				printf("%02X", records->type[j]);
+			}
+		}
+
+		if (records->payload_length)
+		{
+			printf("\n\t- Payload: 0x");
+
+			for (unsigned int j = 0; j < records->payload_length; ++j)
+			{
+				printf("%02X", records->payload[j]);
+			}
+		}
+
+		printf("\nLength=%d]\n", length);
+	}
 }
 
 // Actually useless...
@@ -301,7 +424,7 @@ void execute(void)
 	sCARD_SearchExt  search_struct;
 	sCARD_SearchExt* search = &search_struct;
 
-	unsigned char io_data[256];
+	byte io_data[256];
 
 	// ISO 14443 Type A and B
 	search->CONT = 0;
@@ -360,6 +483,7 @@ void execute(void)
 					int offset = 0;
 					unsigned int bytes_read = 0;
 					byte* NDEF_data = (byte*)malloc(sizeof(byte) * buffer_length);
+					Record* payloads = (Record*)malloc(sizeof(Record) * (read_cycles + 1));
 
 					if (!NDEF_data)
 					{
@@ -385,6 +509,7 @@ void execute(void)
 						//display_data_string(io_data, length);
 						copy_string(io_data, NDEF_data, MLe);
 						NDEF_data += MLe;
+						payloads[i] = read_payload(io_data, MLe);
 					}
 
 					offset = MLe * read_cycles;
@@ -398,9 +523,11 @@ void execute(void)
 
 					copy_string(io_data, NDEF_data, MLe);
 					NDEF_data -= MLe * read_cycles;
+					payloads[read_cycles + 1] = read_payload(io_data, MLe);
 
 					printf("NDEF Data:\n");
 					display_data_hex(NDEF_data, buffer_length);
+					//display_records(payloads, read_cycles + 1);
 				}
 			}
 		}
@@ -430,7 +557,7 @@ static char search_csc(DWORD* result)
  * Remark: apparently, resetting the CSC is useless since CSC_SearchCSC()
  * already resets it according to its documentation
  */
-static char reset_csc(DWORD* result, unsigned char data[])
+static char reset_csc(DWORD* result, byte data[])
 {
 	*result = CSC_ResetCSC();
 
@@ -445,7 +572,7 @@ static char reset_csc(DWORD* result, unsigned char data[])
 	}
 }
 
-static char version_csc(DWORD* result, unsigned char data[])
+static char version_csc(DWORD* result, byte data[])
 {
 	*result = CSC_VersionCSC(data);
 
@@ -492,7 +619,49 @@ static char search_card(
 	}
 }
 
-static char nfc_forum_type_4_select(const char* info, DWORD* result, DWORD* length, unsigned char io_data[], int len,
+static char nfc_forum_type_4_command(const char* command_type, const char *command_info,
+	DWORD* result, DWORD* length, byte io_data[], int len,
+	byte cla, byte ins, byte p1, byte p2, ...)
+{
+	char index = 0;
+
+	io_data[index++] = cla;
+	io_data[index++] = ins;
+	io_data[index++] = p1;
+	io_data[index++] = p2;
+
+	va_list args;
+	va_start(args, p2);
+
+	while (index != len)
+	{
+		io_data[index++] = va_arg(args, byte);
+	}
+
+	va_end(args);
+
+	*result = CSC_ISOCommand(io_data, len, io_data, length);
+
+	if (*result == RCSC_Ok)
+	{
+		printf("%d. NFC Forum Type 4 %s (%s) successful...\n", step++, command_type, command_info);
+		display_data_hex(io_data, *length);
+		return SUCCESS;
+	}
+	else
+	{
+		char* message = (char*)malloc(sizeof(char) * 100);
+		strcpy(message, "NFC Forum Type 4 ");
+		strcat(message, command_type);
+		strcat(message, " (");
+		strcat(message, command_info);
+		strcat(message, ") failure!");
+
+		return mess(message, FREE, *result);
+	}
+}
+
+static char nfc_forum_type_4_select(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
 	byte cla, byte ins, byte p1, byte p2, byte lc, ...)
 {
 	char index = 0;
@@ -524,7 +693,7 @@ static char nfc_forum_type_4_select(const char* info, DWORD* result, DWORD* leng
 	else
 	{
 		char* message = (char*)malloc(sizeof(char) * 100);
-		strcpy(message, "NFC Forum Type 4 Read Binary (");
+		strcpy(message, "NFC Forum Type 4 Select (");
 		strcat(message, info);
 		strcat(message, ") failure!");
 
@@ -532,7 +701,7 @@ static char nfc_forum_type_4_select(const char* info, DWORD* result, DWORD* leng
 	}
 }
 
-static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD* length, unsigned char io_data[],
+static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD* length, byte io_data[],
 	byte cla, byte ins, byte p1, byte p2, byte le)
 {
 	io_data[0] = cla;
@@ -558,6 +727,127 @@ static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD*
 
 		return mess(message, FREE, *result);
 	}
+}
+
+static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
+	byte cla, byte ins, byte p1, byte p2, byte lc, ...)
+{
+	char index = 0;
+
+	io_data[index++] = cla;
+	io_data[index++] = ins;
+	io_data[index++] = p1;
+	io_data[index++] = p2;
+	io_data[index++] = lc;
+
+	va_list args;
+	va_start(args, lc);
+
+	while (index != len)
+	{
+		io_data[index++] = va_arg(args, byte);
+	}
+
+	va_end(args);
+
+	*result = CSC_ISOCommand(io_data, len, io_data, length);
+
+	if (*result == RCSC_Ok)
+	{
+		printf("%d. NFC Forum Type 4 Update Binary (%s) successful...\n", step++, info);
+		display_data_hex(io_data, *length);
+		return SUCCESS;
+	}
+	else
+	{
+		char* message = (char*)malloc(sizeof(char) * 100);
+		strcpy(message, "NFC Forum Type 4 Update Binary (");
+		strcat(message, info);
+		strcat(message, ") failure!");
+
+		return mess(message, FREE, *result);
+	}
+}
+
+// When a field is omitted from the record, does that mean either the field is equal to 0 or the field is not present?
+// I guess the second solution is correct.
+static Record read_payload(byte* payload, int length)
+{
+	Record record;
+	int byte_index = 0;
+
+	// Flags
+	record.mb = payload[byte_index] & 0x80;
+	record.me = payload[byte_index] & 0x40;
+	record.cf = payload[byte_index] & 0x20;
+	record.sr = payload[byte_index] & 0x10;
+	record.il = payload[byte_index] & 0x08;
+	record.tnf = payload[byte_index++] & 0x07;
+
+	switch (record.tnf)
+	{
+	case Empty:
+		// record.type_length, record.id_length and record.payload_length are 0
+		// record.type, record.id and record.payload are omitted
+		return record;
+	case TNF_Unknown:
+	case Unchanged:
+		record.type_length = 0;
+		// record.type is omitted
+		break;
+	default:
+		record.type_length = payload[byte_index++];
+		break;
+	}
+
+	if (!record.sr)
+	{
+		record.payload_length = payload[byte_index++] & 0xF000;
+		record.payload_length = payload[byte_index++] & 0x0F00;
+		record.payload_length = payload[byte_index++] & 0x00F0;
+		record.payload_length = payload[byte_index++] & 0x000F;
+	}
+	else
+	{
+		record.payload_length = payload[byte_index++];
+	}
+
+	record.id_length = record.il ? payload[byte_index++] : 0;
+
+	if (record.type_length)
+	{
+		record.type = (byte*)malloc(sizeof(byte) * record.type_length);
+
+		for (int i = 0; i < record.type_length; ++i)
+		{
+			record.type[i] = payload[byte_index++];
+		}
+	}
+
+	if (record.id_length)
+	{
+		record.id = (byte*)malloc(sizeof(byte) * record.id_length);
+
+		for (int i = 0; i < record.id_length; ++i)
+		{
+			record.id[i] = payload[byte_index++];
+		}
+	}
+
+	record.payload = (byte*)malloc(sizeof(byte) * record.payload_length);
+
+	for (int i = 0; i < record.payload_length; ++i)
+	{
+		record.payload[i] = payload[byte_index++];
+	}
+
+	// Final check before exiting
+	if (byte_index > length)
+	{
+		mess("Failed to read payload", DO_NOT_FREE, NULL);
+	}
+
+	return record;
 }
 
 #ifdef _SMART_CARDS_
