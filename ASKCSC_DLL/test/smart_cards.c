@@ -227,9 +227,21 @@ static char mess(char* text, char to_free, DWORD result)
 	return FAILURE;
 }
 
-static void display_data_hex(unsigned char data[], DWORD length)
+static void display_data_string(unsigned char* data, DWORD length)
 {
-	printf("\t[Data=0x");
+	printf("\t[Data STR=");
+
+	for (unsigned int i = 0; i < length; ++i)
+	{
+		printf("%c", data[i]);
+	}
+
+	printf(", Length=%d]\n", length);
+}
+
+static void display_data_hex(unsigned char* data, DWORD length)
+{
+	printf("\t[Data HEX=0x");
 
 	for (unsigned int i = 0; i < length; ++i)
 	{
@@ -271,6 +283,11 @@ static long hex_to_dec(char* hex)
 	}
 
 	return dec;
+}
+
+static void copy_string(char* source, char* destination, unsigned int length)
+{
+	for (; length > 0; *destination++ = *source++, --length);
 }
 
 void execute(void)
@@ -341,7 +358,8 @@ void execute(void)
 				{
 					int read_cycles = buffer_length / MLe;
 					int offset = 0;
-					byte* NDEF_data = malloc(sizeof(byte) * buffer_length);
+					unsigned int bytes_read = 0;
+					byte* NDEF_data = (byte*)malloc(sizeof(byte) * buffer_length);
 
 					if (!NDEF_data)
 					{
@@ -362,8 +380,10 @@ void execute(void)
 							return;
 						}
 
-						strcpy((char*)NDEF_data, (char*)io_data);
-						display_data_hex(NDEF_data, MLe);
+						// Why the number of data read is always the number we ordered 
+						// to read + 3?
+						//display_data_string(io_data, length);
+						copy_string(io_data, NDEF_data, MLe);
 						NDEF_data += MLe;
 					}
 
@@ -376,8 +396,8 @@ void execute(void)
 						return;
 					}
 
-					strcat(NDEF_data, io_data);
-					NDEF_data -= MLe * (read_cycles - 1);
+					copy_string(io_data, NDEF_data, MLe);
+					NDEF_data -= MLe * read_cycles;
 
 					printf("NDEF Data:\n");
 					display_data_hex(NDEF_data, buffer_length);
