@@ -78,14 +78,66 @@
 		au MaxLe qui a été extrait dans l'étape 8.
 	- Etape 11 - décodage du fichier NDEF :
 		0022
-			D102/1D
-				5270
-				9101/11/8801-70617261676F6E2D726669642E62F6D
-				5101/04/5400-504944
+			D102/1D ---> Taille
+				5270 ---> Smart Poster
+				9101/11/8801-70617261676F6E2D726669642E62F6D ---> 91 -> Short record. 11 -> 17 octets pour la ressource. Utiliser les tables pour le type de l'URI  0x70... URL encodée
+				5101/04/5400-504944 --> UTF 8 dont on ne connait pas la longueur
 
 	Enter hunt phase parameters --> autoselect = 0
 	=== > Désactivation de l'envoie SELECT APPLI automatique lors de la phase anticollision
 	Mettre après version CSC autoselect à 0
+
+	Création d'une instanciation sir carte RFID
+
+	=> 3 Records à créer
+
+	Entête : 
+	MB 1
+	ME 1
+	CF 0
+	SR 0
+	IL 
+	TNF 00
+	==> 0x91
+	Type Length = 0x01
+	Payload Length =
+	ID Length = A calculer
+	Type = 0x55
+	ID = Ué
+	Payload = 0x01 "www.apple.com"
+
+	Entête 2 :
+	MB 0
+	ME 0
+	CF 0
+	SR 1
+	IL 0
+	TNF 00
+	==> 0x
+	Type Length = 0x01
+	Payload Length = 0x12
+	ID Length
+	Type = 0x54
+	ID
+	Payload = UTF-8_2 ... => 0x02
+
+	Entête 3 :
+	MB 0
+	ME 1
+	CF 0
+	SR 1
+	IL 0
+	TNF 001 => Si on met unknown =, c'est mal interprété par la suite
+	==> 0x
+	Type Length = 0x00 ==> Type devient unknown
+	Payload Length = 0x08
+	ID Length -
+	Type -
+	ID -
+	Payload = UTF-8_2 ... => 0x02
+
+	Write en fonction de MaxLc pour savoir le découpage que l'on va faire
+
 *****************************************************************/
 
 /*****************************************************************
@@ -863,3 +915,14 @@ int main(void)
 }
 
 #endif //_SMART_CARDS_
+
+
+/*
+
+2. Regarder si il y a 1 ou plusieurs record dans le champs NDEF (Comme on a le début et la fin -> 1 seul record)
+3. Longeur du champ type  ---> 0x5370 Sp = SmartPoster
+		===> Contient un certain nombre de records
+4. Longueur du champ payload
+5. ID length et longueur -> si il n'est pas là, le champ n'est pas présent
+
+*/
