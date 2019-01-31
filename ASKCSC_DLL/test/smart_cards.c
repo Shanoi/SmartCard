@@ -436,20 +436,9 @@ static void free_records(Record* records, int length)
 
 	for (int i = 0; i < length; records++, ++i)
 	{
-		if (records->type)
-		{
-			free(records->type);
-		}
-
-		if (records->id)
-		{
-			free(records->id);
-		}
-
-		if (records->payload)
-		{
-			free(records->payload);
-		}
+		free(records->type);
+		free(records->id);
+		free(records->payload);
 	}
 
 	records -= length;
