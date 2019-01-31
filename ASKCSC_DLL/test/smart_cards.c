@@ -79,9 +79,9 @@
 	- Etape 11 - décodage du fichier NDEF :
 		0022
 			D102/1D ---> Taille
-				5270 ---> Smart Poster
-				9101/11/8801-70617261676F6E2D726669642E62F6D ---> 91 -> Short record. 11 -> 17 octets pour la ressource. Utiliser les tables pour le type de l'URI  0x70... URL encodée
-				5101/04/5400-504944 --> UTF 8 dont on ne connait pas la longueur
+				5370 ---> Smart Poster
+					9101/11/8801-70 617261676F6E2D726669642E62F6D ---> 91 -> Short record. 11 -> 17 octets pour la ressource. Utiliser les tables pour le type de l'URI  0x70... URL encodée
+					5101/04/5400-504944 --> UTF 8 dont on ne connait pas la longueur
 
 	Enter hunt phase parameters --> autoselect = 0
 	=== > Désactivation de l'envoie SELECT APPLI automatique lors de la phase anticollision
@@ -561,7 +561,6 @@ void execute(void)
 						// to read + 3?
 						//display_data_string(io_data, length);
 						copy_string(io_data, NDEF_data, MLe, 1);
-						payloads[i] = read_payload(NDEF_data, MLe);
 						NDEF_data += MLe;
 					}
 
@@ -574,10 +573,9 @@ void execute(void)
 						return;
 					}
 
-					copy_string(io_data, NDEF_data, MLe, 1);
-					payloads[read_cycles + 1] = read_payload(NDEF_data, MLe);
-					NDEF_data -= MLe * read_cycles;
+					copy_string(io_data, NDEF_data, MLe, 1);*
 
+					NDEF_data -= MLe * read_cycles;
 					printf("NDEF Data:\n");
 					display_data_hex(NDEF_data, buffer_length);
 					//display_records(payloads, read_cycles + 1);
@@ -828,6 +826,8 @@ static Record read_payload(byte* payload, int length)
 {
 	Record record;
 	int byte_index = 0;
+	int NLEN = (int) (payload[byte_index] << 8 ) + (int) (payload[byte_index+1]);
+	byte_index += 2;
 
 	// Flags
 	record.mb = payload[byte_index] & 0x80 ? 1 : 0;
