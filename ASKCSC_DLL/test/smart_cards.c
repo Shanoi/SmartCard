@@ -248,7 +248,8 @@ static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD*
 	byte cla, byte ins, byte p1, byte p2, byte le);
 static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
 	byte cla, byte ins, byte p1, byte p2, byte lc, ...);
-static Record read_payload(byte* payload, int length);
+static Record* parse_ndef_file(byte* data, int* total_records);
+static Record parse_record(byte* data, int* byte_index);
 
 static char mess(char* text, char to_free, DWORD result)
 {
@@ -426,6 +427,35 @@ static void display_records(Record* records, DWORD length)
 	}
 }
 
+static void free_records(Record* records, int length)
+{
+	if (!records)
+	{
+		return;
+	}
+
+	for (int i = 0; i < length; records++, ++i)
+	{
+		if (records->type)
+		{
+			free(records->type);
+		}
+
+		if (records->id)
+		{
+			free(records->id);
+		}
+
+		if (records->payload)
+		{
+			free(records->payload);
+		}
+	}
+
+	records -= length;
+	free(records);
+}
+
 // Actually useless...
 static long hex_to_dec(char* hex)
 {
@@ -463,6 +493,7 @@ static long hex_to_dec(char* hex)
 static void copy_string(char* source, char* destination, unsigned int length, unsigned int offset)
 {
 	source += offset;
+
 	for (; length > 0; *destination++ = *source++, --length);
 }
 
@@ -536,7 +567,7 @@ void execute(void)
 					int offset = 0;
 					unsigned int bytes_read = 0;
 					byte* NDEF_data = (byte*)malloc(sizeof(byte) * buffer_length);
-					Record* payloads = (Record*)malloc(sizeof(Record) * (read_cycles + 1));
+					Record* records;
 
 					if (!NDEF_data)
 					{
@@ -557,8 +588,6 @@ void execute(void)
 							return;
 						}
 
-						// Why the number of data read is always the number we ordered 
-						// to read + 3?
 						//display_data_string(io_data, length);
 						copy_string(io_data, NDEF_data, MLe, 1);
 						NDEF_data += MLe;
@@ -573,12 +602,13 @@ void execute(void)
 						return;
 					}
 
-					copy_string(io_data, NDEF_data, MLe, 1);*
-
+					copy_string(io_data, NDEF_data, MLe, 1);
 					NDEF_data -= MLe * read_cycles;
 					printf("NDEF Data:\n");
 					display_data_hex(NDEF_data, buffer_length);
-					//display_records(payloads, read_cycles + 1);
+					records = parse_ndef_file(NDEF_data, &length);
+					display_records(records, length);
+					free_records(records, length);
 				}
 			}
 		}
@@ -822,20 +852,41 @@ static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWOR
 
 // When a field is omitted from the record, does that mean either the field is equal to 0 or the field is not present?
 // I guess the second solution is correct.
-static Record read_payload(byte* payload, int length)
+static Record* parse_ndef_file(byte* data, int* total_records)
+{
+	Record* records = (Record*)malloc(sizeof(Record));
+	*total_records = 0;
+
+	int byte_index = 0;
+	int NLEN = (int)(data[0] << 8) + (int)(data[1]);
+	data += 2;
+
+	while (byte_index < NLEN)
+	{
+		*records = parse_record(data, &byte_index);
+		(*total_records)++;
+		records = (Record*)realloc(records, sizeof(Record) * (*total_records));
+		records++;
+	}
+
+	records -= *total_records;
+	return records;
+}
+
+static Record parse_record(byte* record_data, int* byte_index)
 {
 	Record record;
-	int byte_index = 0;
-	int NLEN = (int) (payload[byte_index] << 8 ) + (int) (payload[byte_index+1]);
-	byte_index += 2;
+	record.type = NULL;
+	record.id = NULL;
+	record.payload = NULL;
 
 	// Flags
-	record.mb = payload[byte_index] & 0x80 ? 1 : 0;
-	record.me = payload[byte_index] & 0x40 ? 1 : 0;
-	record.cf = payload[byte_index] & 0x20 ? 1 : 0;
-	record.sr = payload[byte_index] & 0x10 ? 1 : 0;
-	record.il = payload[byte_index] & 0x08 ? 1 : 0;
-	record.tnf = payload[byte_index++] & 0x07;
+	record.mb = record_data[*byte_index] & 0x80 ? 1 : 0;
+	record.me = record_data[*byte_index] & 0x40 ? 1 : 0;
+	record.cf = record_data[*byte_index] & 0x20 ? 1 : 0;
+	record.sr = record_data[*byte_index] & 0x10 ? 1 : 0;
+	record.il = record_data[*byte_index] & 0x08 ? 1 : 0;
+	record.tnf = record_data[(*byte_index)++] & 0x07;
 
 	switch (record.tnf)
 	{
@@ -849,23 +900,23 @@ static Record read_payload(byte* payload, int length)
 		// record.type is omitted
 		break;
 	default:
-		record.type_length = payload[byte_index++];
+		record.type_length = record_data[(*byte_index)++];
 		break;
 	}
 
 	if (!record.sr)
 	{
-		record.payload_length = payload[byte_index++] & 0xF000;
-		record.payload_length += payload[byte_index++] & 0x0F00;
-		record.payload_length += payload[byte_index++] & 0x00F0;
-		record.payload_length += payload[byte_index++] & 0x000F;
+		record.payload_length = record_data[(*byte_index)++] & 0xF000;
+		record.payload_length += record_data[(*byte_index)++] & 0x0F00;
+		record.payload_length += record_data[(*byte_index)++] & 0x00F0;
+		record.payload_length += record_data[(*byte_index)++] & 0x000F;
 	}
 	else
 	{
-		record.payload_length = payload[byte_index++];
+		record.payload_length = record_data[(*byte_index)++];
 	}
 
-	record.id_length = record.il ? payload[byte_index++] : 0;
+	record.id_length = record.il ? record_data[(*byte_index)++] : 0;
 
 	if (record.type_length)
 	{
@@ -873,7 +924,7 @@ static Record read_payload(byte* payload, int length)
 
 		for (int i = 0; i < record.type_length; ++i)
 		{
-			record.type[i] = payload[byte_index++];
+			record.type[i] = record_data[(*byte_index)++];
 		}
 	}
 
@@ -883,7 +934,7 @@ static Record read_payload(byte* payload, int length)
 
 		for (int i = 0; i < record.id_length; ++i)
 		{
-			record.id[i] = payload[byte_index++];
+			record.id[i] = record_data[(*byte_index)++];
 		}
 	}
 
@@ -891,14 +942,16 @@ static Record read_payload(byte* payload, int length)
 
 	for (int i = 0; i < record.payload_length; ++i)
 	{
-		record.payload[i] = payload[byte_index++];
+		record.payload[i] = record_data[(*byte_index)++];
 	}
 
 	// Final check before exiting
+	/*
 	if (byte_index > length)
 	{
 		mess("Failed to read payload", DO_NOT_FREE, NULL);
 	}
+	*/
 
 	return record;
 }
