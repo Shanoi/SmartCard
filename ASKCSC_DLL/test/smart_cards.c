@@ -91,12 +91,12 @@
 
 	=> 3 Records à créer
 
-	Entête : 
+	Entête :
 	MB 1
 	ME 1
 	CF 0
 	SR 0
-	IL 
+	IL
 	TNF 00
 	==> 0x91
 	Type Length = 0x01
@@ -460,8 +460,9 @@ static long hex_to_dec(char* hex)
 	return dec;
 }
 
-static void copy_string(char* source, char* destination, unsigned int length)
+static void copy_string(char* source, char* destination, unsigned int length, unsigned int offset)
 {
+	source += offset;
 	for (; length > 0; *destination++ = *source++, --length);
 }
 
@@ -559,9 +560,9 @@ void execute(void)
 						// Why the number of data read is always the number we ordered 
 						// to read + 3?
 						//display_data_string(io_data, length);
-						copy_string(io_data, NDEF_data, MLe);
+						copy_string(io_data, NDEF_data, MLe, 1);
+						payloads[i] = read_payload(NDEF_data, MLe);
 						NDEF_data += MLe;
-						payloads[i] = read_payload(io_data, MLe);
 					}
 
 					offset = MLe * read_cycles;
@@ -573,9 +574,9 @@ void execute(void)
 						return;
 					}
 
-					copy_string(io_data, NDEF_data, MLe);
+					copy_string(io_data, NDEF_data, MLe, 1);
+					payloads[read_cycles + 1] = read_payload(NDEF_data, MLe);
 					NDEF_data -= MLe * read_cycles;
-					payloads[read_cycles + 1] = read_payload(io_data, MLe);
 
 					printf("NDEF Data:\n");
 					display_data_hex(NDEF_data, buffer_length);
@@ -829,11 +830,11 @@ static Record read_payload(byte* payload, int length)
 	int byte_index = 0;
 
 	// Flags
-	record.mb = payload[byte_index] & 0x80;
-	record.me = payload[byte_index] & 0x40;
-	record.cf = payload[byte_index] & 0x20;
-	record.sr = payload[byte_index] & 0x10;
-	record.il = payload[byte_index] & 0x08;
+	record.mb = payload[byte_index] & 0x80 ? 1 : 0;
+	record.me = payload[byte_index] & 0x40 ? 1 : 0;
+	record.cf = payload[byte_index] & 0x20 ? 1 : 0;
+	record.sr = payload[byte_index] & 0x10 ? 1 : 0;
+	record.il = payload[byte_index] & 0x08 ? 1 : 0;
 	record.tnf = payload[byte_index++] & 0x07;
 
 	switch (record.tnf)
@@ -855,9 +856,9 @@ static Record read_payload(byte* payload, int length)
 	if (!record.sr)
 	{
 		record.payload_length = payload[byte_index++] & 0xF000;
-		record.payload_length = payload[byte_index++] & 0x0F00;
-		record.payload_length = payload[byte_index++] & 0x00F0;
-		record.payload_length = payload[byte_index++] & 0x000F;
+		record.payload_length += payload[byte_index++] & 0x0F00;
+		record.payload_length += payload[byte_index++] & 0x00F0;
+		record.payload_length += payload[byte_index++] & 0x000F;
 	}
 	else
 	{
