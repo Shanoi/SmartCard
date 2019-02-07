@@ -18,12 +18,21 @@
     <ClCompile Include="Test.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="smart_cards.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="smart_card_prod.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\askcsc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="test.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="select.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

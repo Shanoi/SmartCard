@@ -21,6 +21,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{4FE18239-410F-4D6D-85C5-E357124088D0}</ProjectGuid>
     <RootNamespace>test</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -243,6 +244,8 @@
     <Library Include="..\Debug\askcsc.lib" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="smart_cards.c" />
+    <ClCompile Include="smart_card_prod.c" />
     <ClCompile Include="Test.c">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Disabled</Optimization>
       <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">EnableFastChecks</BasicRuntimeChecks>
@@ -258,6 +261,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\askcsc.h" />
+    <ClInclude Include="select.h" />
     <ClInclude Include="test.h" />
   </ItemGroup>
   <ItemGroup>
