@@ -210,6 +210,10 @@ enum TNF {
  * type          : identifier describing the type of the payload, format depends on TNF flag.
  * id            : uniqueness message identifier.
  * payload       : actual data of length payload_length.
+ * 
+ * sp            : Smart Poster (SP). Type equals 0x5370 (Sp)
+ * sp_records    : If this record is a smart poster, then sp_records contains the subrecord(s).
+ * nb_sp_records : The number of subrecords of a smart poster record. (1 <= nb_sp_records <= 4).
 */
 typedef struct record {
 	char mb;
@@ -224,6 +228,10 @@ typedef struct record {
 	byte* type;
 	byte* id;
 	byte* payload;
+
+	char sp;
+	struct record* sp_records;
+	char nb_sp_records;
 } Record;
 
 /*****************************************************************
@@ -249,6 +257,7 @@ static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD*
 static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
 	byte cla, byte ins, byte p1, byte p2, byte lc, ...);
 static Record* parse_ndef_file(byte* data, int* total_records);
+static Record* parse_smart_poster(byte* data, int data_length, char* total_records);
 static Record parse_record(byte* data, int* byte_index);
 
 static char mess(char* text, char to_free, DWORD result)
@@ -382,20 +391,30 @@ static void display_data_hex(byte* data, DWORD length)
 	printf(", Length=%d]\n", length);
 }
 
-static void display_records(Record* records, DWORD length)
+static void display_records(Record* records, DWORD length, int level)
 {
+	char* indent = (char*)malloc(sizeof(char) * level + 1);
+	for (int i = 0; i < level; *indent++ = '\t', ++i);
+	*indent = '\0';
+	indent -= level;
+	printf("%s[Number of records: %d]\n", indent, length);
+
 	for (unsigned int i = 0; i < length; ++i, ++records)
 	{
-		printf("[Record:\n\t--- Flags ---\n\t- MB: %s\n\t- ME: %s\n\t- CF: %s\n\t- SR: %s\n\t- IL: %s\n\t- TNF: ",
-			records->mb ? YES : NO, records->me ? YES : NO, records->cf ? YES : NO,
-			records->sr ? YES : NO, records->il ? YES : NO);
+		printf("%s[Record:\n\t%s--- Flags ---\n\t%s- MB: %s\n\t%s- ME: %s\n\t%s- CF: %s\n\t%s- SR: %s\n\t%s- IL: %s\n\t%s- TNF: ", 
+			indent, indent, indent, 
+			records->mb ? YES : NO, indent, 
+			records->me ? YES : NO, indent, 
+			records->cf ? YES : NO, indent, 
+			records->sr ? YES : NO, indent, 
+			records->il ? YES : NO, indent);
 		display_TNF(records->tnf);
-		printf("\n\t- Type Length: %d\n\t- Payload Length: %d\n\t",
-			records->type_length, records->payload_length);
+		printf("\n\t%s- Type Length: %d\n\t%s- Payload Length: %d",
+			indent, records->type_length, indent, records->payload_length, indent);
 
 		if (records->il)
 		{
-			printf("- ID Length: %d\n\t- ID: 0x", records->id_length);
+			printf("\n\t%s- ID Length: %d\n\t%s- ID: 0x", indent, records->id_length, indent);
 
 			for (unsigned int j = 0; j < records->id_length; ++j)
 			{
@@ -405,26 +424,49 @@ static void display_records(Record* records, DWORD length)
 
 		if (records->type_length)
 		{
-			printf("\n\t- Type: 0x");
+			printf("\n\t%s- Type: 0x", indent);
 
 			for (unsigned int j = 0; j < records->type_length; ++j)
 			{
 				printf("%02X", records->type[j]);
 			}
+
+			printf(" ");
+
+			for (unsigned int j = 0; j < records->type_length; ++j)
+			{
+				printf("%c", records->type[j]);
+			}
 		}
 
 		if (records->payload_length)
 		{
-			printf("\n\t- Payload: 0x");
+			printf("\n\t%s- Payload: 0x", indent);
 
 			for (unsigned int j = 0; j < records->payload_length; ++j)
 			{
 				printf("%02X", records->payload[j]);
 			}
+
+			printf(" ");
+
+			for (unsigned int j = 0; j < records->payload_length; ++j)
+			{
+				printf("%c", records->payload[j]);
+			}
 		}
 
-		printf("\nLength=%d]\n", length);
+		printf("\n");
+
+		if (records->sp)
+		{
+			display_records(records->sp_records, records->nb_sp_records, level + 1);
+		}
+
+		printf("%s]\n", indent);
 	}
+
+	free(indent);
 }
 
 static void free_records(Record* records, int length)
@@ -439,6 +481,11 @@ static void free_records(Record* records, int length)
 		free(records->type);
 		free(records->id);
 		free(records->payload);
+
+		if (records->sp)
+		{
+			free_records(records->sp_records, records->nb_sp_records);
+		}
 	}
 
 	records -= length;
@@ -593,11 +640,32 @@ void execute(void)
 
 					copy_string(io_data, NDEF_data, MLe, 1);
 					NDEF_data -= MLe * read_cycles;
+					
 					printf("NDEF Data:\n");
 					display_data_hex(NDEF_data, buffer_length);
+
 					records = parse_ndef_file(NDEF_data, &length);
-					display_records(records, length);
+					display_records(records, length, 0);
 					free_records(records, length);
+
+					// Writing not tested
+
+					// Write URI 0x01(?) 0x61 0x70 0x70 0x6C 0x65 0x2E 0x63 0x6F 0x6D
+					nfc_forum_type_4_update_binary("TD URI", &result, &length, io_data, 18, 
+						0x00, 0xD6, 0x00, 0x00, 0x91, 0x01, 0x0A, 0x55, 
+						0x01, 0x61, 0x70, 0x70, 0x6C, 0x65, 0x2E, 0x63, 0x6F, 0x6D);
+
+					// Write Text (?) 0x02, 0x66, 0x72, (?) 0x4C, 0x61, 0x20, 0x62, 0x65, 
+					// 0x6C, 0x6C, 0x65, 0x20, 0x68, 0x69, 0x73, 0x74, 0x6f, 0x69, 0x72, 0x65
+					nfc_forum_type_4_update_binary("TD Text", &result, &length, io_data, 18,
+						0x00, 0xD6, 0x00, 0x00, 0x51, 0x01, 0x08, 0x54, /* (?) */ 0x02, 0x66, 0x72,
+						0x4C, 0x61, 0x20, 0x62, 0x65, 0x6C, 0x6C, 0x65, 0x20, 
+						0x68, 0x69, 0x73, 0x74, 0x6f, 0x69, 0x72, 0x65);
+
+					// Write Data 0x50, 0x4f, 0x4c, 0x59, 0x54, 0x45, 0x43, 0x48
+					nfc_forum_type_4_update_binary("TD Data", &result, &length, io_data, 18,
+						0x00, 0xD6, 0x00, 0x00, 0x51, 0x00, 0x08, 
+						0x50, 0x4F, 0x4C, 0x59, 0x54, 0x45, 0x43, 0x48);
 				}
 			}
 		}
@@ -854,7 +922,27 @@ static Record* parse_ndef_file(byte* data, int* total_records)
 	{
 		*records = parse_record(data, &byte_index);
 		(*total_records)++;
-		records = (Record*)realloc(records, sizeof(Record) * (*total_records));
+		records = (Record*)realloc(records, sizeof(Record) * (*total_records + 1));
+		records++;
+	}
+
+	records -= *total_records;
+	return records;
+}
+
+Record* parse_smart_poster(byte* data, int data_length, char* total_records)
+{
+	Record* records = (Record*)malloc(sizeof(Record) * 4);
+	*total_records = 0;
+
+	int byte_index = 0;
+
+	while (byte_index < data_length)
+	{
+		*records = parse_record(data, &byte_index);
+		(*total_records)++;
+		// The line below bugs... realloc procs a fucking heap corruption error
+		//records = (Record*)realloc(records, sizeof(Record) * (*total_records + 1));
 		records++;
 	}
 
@@ -932,6 +1020,11 @@ static Record parse_record(byte* record_data, int* byte_index)
 	for (int i = 0; i < record.payload_length; ++i)
 	{
 		record.payload[i] = record_data[(*byte_index)++];
+	}
+	
+	if (record.sp = (record.type_length == 2 && record.type[0] == 0x53 && record.type[1] == 0x70))
+	{
+		record.sp_records = parse_smart_poster(record.payload, record.payload_length, &(record.nb_sp_records));
 	}
 
 	// Final check before exiting
