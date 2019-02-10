@@ -87,7 +87,7 @@
 	=== > Désactivation de l'envoie SELECT APPLI automatique lors de la phase anticollision
 	Mettre après version CSC autoselect à 0
 
-	Création d'une instanciation sir carte RFID
+	Création d'une instanciation sur carte RFID
 
 	=> 3 Records à créer
 
@@ -136,7 +136,7 @@
 	ID -
 	Payload = UTF-8_2 ... => 0x02
 
-	Write en fonction de MaxLc pour savoir le découpage que l'on va faire
+	Write en fonction de MLc pour savoir le découpage que l'on va faire
 
 *****************************************************************/
 
@@ -210,7 +210,7 @@ enum TNF {
  * type          : identifier describing the type of the payload, format depends on TNF flag.
  * id            : uniqueness message identifier.
  * payload       : actual data of length payload_length.
- * 
+ *
  * sp            : Smart Poster (SP). Type equals 0x5370 (Sp)
  * sp_records    : If this record is a smart poster, then sp_records contains the subrecord(s).
  * nb_sp_records : The number of subrecords of a smart poster record. (1 <= nb_sp_records <= 4).
@@ -232,13 +232,27 @@ typedef struct record {
 	char sp;
 	struct record* sp_records;
 	char nb_sp_records;
+
+	char corrupted;
 } Record;
 
+static DWORD result;
+static DWORD length;
+static byte io_data[256];
+
+static int MLe;
+static int MLc;
+static byte NDEF_File[2];
+static int buffer_length;
+
+static Record* records;
+static int record_length;
+
 /*****************************************************************
-	FUNCTIONS
+	FUNCTION DECLARATIONS
 *****************************************************************/
 
-void execute(void);
+static void initialize(void);
 static char search_csc(DWORD* result);
 static char reset_csc(DWORD* result, byte io_data[]);
 static char version_csc(DWORD* result, byte io_data[]);
@@ -254,11 +268,19 @@ static char nfc_forum_type_4_select(const char* info, DWORD* result, DWORD* leng
 	byte cla, byte ins, byte p1, byte p2, byte lc, ...);
 static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD* length, byte io_data[],
 	byte cla, byte ins, byte p1, byte p2, byte le);
-static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
+static char nfc_forum_type_4_update_binary_hard(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
 	byte cla, byte ins, byte p1, byte p2, byte lc, ...);
+static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
+	byte cla, byte ins, byte p1, byte p2, byte lc, byte* data);
 static Record* parse_ndef_file(byte* data, int* total_records);
 static Record* parse_smart_poster(byte* data, int data_length, char* total_records);
-static Record parse_record(byte* data, int* byte_index);
+static Record parse_record(byte* data, int* byte_index, int NLEN);
+static void read(void);
+static void write(byte* data, unsigned int data_length);
+
+/*****************************************************************
+	FUNCTION IMPLEMENTATIONS
+*****************************************************************/
 
 static char mess(char* text, char to_free, DWORD result)
 {
@@ -401,16 +423,21 @@ static void display_records(Record* records, DWORD length, int level)
 
 	for (unsigned int i = 0; i < length; ++i, ++records)
 	{
-		printf("%s[Record:\n\t%s--- Flags ---\n\t%s- MB: %s\n\t%s- ME: %s\n\t%s- CF: %s\n\t%s- SR: %s\n\t%s- IL: %s\n\t%s- TNF: ", 
-			indent, indent, indent, 
-			records->mb ? YES : NO, indent, 
-			records->me ? YES : NO, indent, 
-			records->cf ? YES : NO, indent, 
-			records->sr ? YES : NO, indent, 
+		if (records->corrupted)
+		{
+			printf("%s[Record Corrupted]\n", indent);
+			continue;
+		}
+		printf("%s[Record:\n\t%s--- Flags ---\n\t%s- MB: %s\n\t%s- ME: %s\n\t%s- CF: %s\n\t%s- SR: %s\n\t%s- IL: %s\n\t%s- TNF: ",
+			indent, indent, indent,
+			records->mb ? YES : NO, indent,
+			records->me ? YES : NO, indent,
+			records->cf ? YES : NO, indent,
+			records->sr ? YES : NO, indent,
 			records->il ? YES : NO, indent);
 		display_TNF(records->tnf);
 		printf("\n\t%s- Type Length: %d\n\t%s- Payload Length: %d",
-			indent, records->type_length, indent, records->payload_length, indent);
+			indent, records->type_length, indent, records->payload_length);
 
 		if (records->il)
 		{
@@ -492,32 +519,46 @@ static void free_records(Record* records, int length)
 	free(records);
 }
 
-// Actually useless...
-static long hex_to_dec(char* hex)
+static unsigned int len(byte* str)
+{
+	unsigned int len = 0;
+	for (; *str != '\0'; str++, ++len);
+	return len;
+}
+
+static void copy_string(char* source, char* destination, unsigned int length, unsigned int source_offset)
+{
+	source += source_offset;
+
+	for (; length > 0; *destination++ = *source++, --length);
+}
+
+static long hex_to_dec(byte* hex, int from, int to)
 {
 	long base = 1; // 16^0 = 1;
 	long dec = 0;
-	int length = strlen(hex);
-	int stop = 0;
+	int length = (int)strlen(hex);
+	int start = from > -1 ? from : 0;
+	int end = to > -1 && to < (int)length ? to : (int)length - 1;
 
-	if (length > 2 && hex[0] == '0' && hex[1] == 'x')
+	if (length > 2 && hex[start] == '0' && hex[start + 1] == 'x')
 	{
-		stop += 2;
+		start += 2;
 	}
 
-	for (int i = length - 1; i >= stop; --i)
+	for (; end >= start; --end)
 	{
-		if (hex[i] >= '0' && hex[i] <= '9')
+		if (hex[end] >= '0' && hex[end] <= '9')
 		{
-			dec += (hex[i] - '0') * base;
+			dec += (hex[end] - '0') * base;
 		}
-		else if (hex[i] >= 'a' && hex[i] <= 'f')
+		else if (hex[end] >= 'a' && hex[end] <= 'f')
 		{
-			dec += (hex[i] - 'a') * base;
+			dec += (hex[end] - 'a' + 10) * base;
 		}
-		else if (hex[i] >= 'A' && hex[i] <= 'F')
+		else if (hex[end] >= 'A' && hex[end] <= 'F')
 		{
-			dec += (hex[i] - 'A') * base;
+			dec += (hex[end] - 'A' + 10) * base;
 		}
 
 		base *= 16; // power replacement;
@@ -526,25 +567,41 @@ static long hex_to_dec(char* hex)
 	return dec;
 }
 
-static void copy_string(char* source, char* destination, unsigned int length, unsigned int offset)
+static byte* str_to_hex(byte* data)
 {
-	source += offset;
+	unsigned int data_length = len(data);
+	byte* hex_data = (byte*)malloc(sizeof(byte) * (data_length / 2));
 
-	for (; length > 0; *destination++ = *source++, --length);
+	if (!hex_data)
+	{
+		printf("Couldn't allocate memory to convert string to hexadecimal...\n");
+		return NULL;
+	}
+
+	for (unsigned int i = 0; i < data_length; hex_data++, i += 2)
+	{
+		*hex_data = (byte)hex_to_dec(data, i, i + 1);
+	}
+
+	free(data);
+	hex_data -= (data_length / 2);
+	return hex_data;
 }
 
-void execute(void)
+static flush()
 {
-	DWORD result;
-	DWORD length;
+	int c;
+	while ((c = getchar()) != '\n' && c != EOF);
+}
+
+void initialize(void)
+{
 	DWORD search_mask;
 
 	BYTE COM;
 
 	sCARD_SearchExt  search_struct;
 	sCARD_SearchExt* search = &search_struct;
-
-	byte io_data[256];
 
 	// ISO 14443 Type A and B
 	search->CONT = 0;
@@ -580,93 +637,17 @@ void execute(void)
 			// Length:5; CLA:00 INS:B0 P1:00 P2:00 Lc:- Data:- Le:0F
 			if (nfc_forum_type_4_read_binary("CC", &result, &length, io_data, 0x00, 0xB0, 0x00, 0x00, 0x0F))
 			{
-				byte MLe_byte = io_data[5];
-				byte MLc_byte = io_data[6];
-				byte buffer_length_bytes[2] = { io_data[12], io_data[13] };
-
-				int MLe = MLe_byte;
-				int MLc = MLc_byte;
-				int buffer_length = buffer_length_bytes[1] + (buffer_length_bytes[0] << 8);
+				MLe = (io_data[4] << 8) + io_data[5];
+				MLc = (io_data[6] << 8) + io_data[7];
+				NDEF_File[0] = io_data[10];
+				NDEF_File[1] = io_data[11];
+				buffer_length = (io_data[12] << 8) + io_data[13];
 
 				printf("Read CC Info Details:\n");
-				printf("\t[MLe=%#04x (%d), NDEF Max File Size=0x%02X%02X (%d), NDEF File ID=0x%02X%02X]\n",
-					MLe_byte, MLe,
-					buffer_length_bytes[1], buffer_length_bytes[2], buffer_length,
-					io_data[10], io_data[11]);
-
-				// Select & Read NDEF File
-				// Length:7; CLA:00 INS:A4 P1:00 P2:0C Lc:02 Data:E104 Le:-
-				if (nfc_forum_type_4_select("NDEF", &result, &length, io_data, 7,
-					0x00, 0xA4, 0x00, 0x0C, 0x02, io_data[10], io_data[11]))
-				{
-					int read_cycles = buffer_length / MLe;
-					int offset = 0;
-					unsigned int bytes_read = 0;
-					byte* NDEF_data = (byte*)malloc(sizeof(byte) * buffer_length);
-					Record* records;
-
-					if (!NDEF_data)
-					{
-						CSC_AntennaOFF();
-						CSC_Close();
-						printf("Memory allocation failed!\n");
-						return;
-					}
-
-					for (int i = 0; i < read_cycles; i++)
-					{
-						offset = MLe * i;
-
-						// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
-						if (!nfc_forum_type_4_read_binary("NDEF", &result, &length, io_data,
-							0x00, 0xB0, (byte)(offset >> 8), (byte)offset, MLe))
-						{
-							return;
-						}
-
-						//display_data_string(io_data, length);
-						copy_string(io_data, NDEF_data, MLe, 1);
-						NDEF_data += MLe;
-					}
-
-					offset = MLe * read_cycles;
-
-					// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
-					if (!nfc_forum_type_4_read_binary("NDEF", &result, &length, io_data,
-						0x00, 0xB0, (byte)(offset >> 8), (byte)offset, MLe))
-					{
-						return;
-					}
-
-					copy_string(io_data, NDEF_data, MLe, 1);
-					NDEF_data -= MLe * read_cycles;
-					
-					printf("NDEF Data:\n");
-					display_data_hex(NDEF_data, buffer_length);
-
-					records = parse_ndef_file(NDEF_data, &length);
-					display_records(records, length, 0);
-					free_records(records, length);
-
-					// Writing not tested
-
-					// Write URI 0x01(?) 0x61 0x70 0x70 0x6C 0x65 0x2E 0x63 0x6F 0x6D
-					nfc_forum_type_4_update_binary("TD URI", &result, &length, io_data, 18, 
-						0x00, 0xD6, 0x00, 0x00, 0x91, 0x01, 0x0A, 0x55, 
-						0x01, 0x61, 0x70, 0x70, 0x6C, 0x65, 0x2E, 0x63, 0x6F, 0x6D);
-
-					// Write Text (?) 0x02, 0x66, 0x72, (?) 0x4C, 0x61, 0x20, 0x62, 0x65, 
-					// 0x6C, 0x6C, 0x65, 0x20, 0x68, 0x69, 0x73, 0x74, 0x6f, 0x69, 0x72, 0x65
-					nfc_forum_type_4_update_binary("TD Text", &result, &length, io_data, 18,
-						0x00, 0xD6, 0x00, 0x00, 0x51, 0x01, 0x08, 0x54, /* (?) */ 0x02, 0x66, 0x72,
-						0x4C, 0x61, 0x20, 0x62, 0x65, 0x6C, 0x6C, 0x65, 0x20, 
-						0x68, 0x69, 0x73, 0x74, 0x6f, 0x69, 0x72, 0x65);
-
-					// Write Data 0x50, 0x4f, 0x4c, 0x59, 0x54, 0x45, 0x43, 0x48
-					nfc_forum_type_4_update_binary("TD Data", &result, &length, io_data, 18,
-						0x00, 0xD6, 0x00, 0x00, 0x51, 0x00, 0x08, 
-						0x50, 0x4F, 0x4C, 0x59, 0x54, 0x45, 0x43, 0x48);
-				}
+				printf("\t[MLe=0x%02X%02X (%d), MLc=0x%02X%02X (%d), NDEF Max File Size=0x%02X%02X (%d), NDEF File ID=0x%02X%02X]\n",
+					io_data[4], io_data[5], MLe, io_data[6], io_data[7], MLc,
+					io_data[12], io_data[13], buffer_length,
+					NDEF_File[0], NDEF_File[1]);
 			}
 		}
 	}
@@ -867,7 +848,7 @@ static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD*
 	}
 }
 
-static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
+static char nfc_forum_type_4_update_binary_hard(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
 	byte cla, byte ins, byte p1, byte p2, byte lc, ...)
 {
 	char index = 0;
@@ -907,11 +888,47 @@ static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWOR
 	}
 }
 
+static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
+	byte cla, byte ins, byte p1, byte p2, byte lc, byte* data)
+{
+	char index = 0;
+
+	io_data[index++] = cla;
+	io_data[index++] = ins;
+	io_data[index++] = p1;
+	io_data[index++] = p2;
+	io_data[index++] = lc;
+
+	while (index != len)
+	{
+		io_data[index++] = *data++;
+	}
+
+	*result = CSC_ISOCommand(io_data, len, io_data, length);
+
+	if (*result == RCSC_Ok)
+	{
+		printf("%d. NFC Forum Type 4 Update Binary (%s) successful...\n", step++, info);
+		display_data_hex(io_data, *length);
+		return SUCCESS;
+	}
+	else
+	{
+		char* message = (char*)malloc(sizeof(char) * 100);
+		strcpy(message, "NFC Forum Type 4 Update Binary (");
+		strcat(message, info);
+		strcat(message, ") failure!");
+
+		return mess(message, FREE, *result);
+	}
+}
+
 // When a field is omitted from the record, does that mean either the field is equal to 0 or the field is not present?
 // I guess the second solution is correct.
 static Record* parse_ndef_file(byte* data, int* total_records)
 {
-	Record* records = (Record*)malloc(sizeof(Record));
+	int mem_size = sizeof(Record);
+	Record* records = (Record*)malloc(mem_size);
 	*total_records = 0;
 
 	int byte_index = 0;
@@ -920,42 +937,48 @@ static Record* parse_ndef_file(byte* data, int* total_records)
 
 	while (byte_index < NLEN)
 	{
-		*records = parse_record(data, &byte_index);
+		*records = parse_record(data, &byte_index, NLEN);
+		mem_size += sizeof(*records);
+		records -= *total_records;
+		records = (Record*)realloc(records, mem_size);
 		(*total_records)++;
-		records = (Record*)realloc(records, sizeof(Record) * (*total_records + 1));
-		records++;
+		records += *total_records;
 	}
 
 	records -= *total_records;
 	return records;
 }
 
-Record* parse_smart_poster(byte* data, int data_length, char* total_records)
+static Record* parse_smart_poster(byte* data, int data_length, char* total_records)
 {
-	Record* records = (Record*)malloc(sizeof(Record) * 4);
+	int mem_size = sizeof(Record);
+	Record* records = (Record*)malloc(mem_size);
 	*total_records = 0;
 
 	int byte_index = 0;
 
 	while (byte_index < data_length)
 	{
-		*records = parse_record(data, &byte_index);
+		*records = parse_record(data, &byte_index, data_length);
+		mem_size += sizeof(*records);
+		records -= *total_records;
+		records = (Record*)realloc(records, mem_size);
 		(*total_records)++;
-		// The line below bugs... realloc procs a fucking heap corruption error
-		//records = (Record*)realloc(records, sizeof(Record) * (*total_records + 1));
-		records++;
+		records += *total_records;
 	}
 
 	records -= *total_records;
 	return records;
 }
 
-static Record parse_record(byte* record_data, int* byte_index)
+static Record parse_record(byte* record_data, int* byte_index, int NLEN)
 {
 	Record record;
 	record.type = NULL;
 	record.id = NULL;
 	record.payload = NULL;
+	record.sp_records = NULL;
+	record.corrupted = 0;
 
 	// Flags
 	record.mb = record_data[*byte_index] & 0x80 ? 1 : 0;
@@ -970,6 +993,11 @@ static Record parse_record(byte* record_data, int* byte_index)
 	case Empty:
 		// record.type_length, record.id_length and record.payload_length are 0
 		// record.type, record.id and record.payload are omitted
+		record.type_length = 0;
+		record.payload_length = 0;
+		record.id_length = 0;
+		record.sp = 0;
+		record.nb_sp_records = 0;
 		return record;
 	case TNF_Unknown:
 	case Unchanged:
@@ -1001,6 +1029,12 @@ static Record parse_record(byte* record_data, int* byte_index)
 
 		for (int i = 0; i < record.type_length; ++i)
 		{
+			if (*byte_index >= NLEN)
+			{
+				record.corrupted = 1;
+				return record;
+			}
+
 			record.type[i] = record_data[(*byte_index)++];
 		}
 	}
@@ -1011,39 +1045,232 @@ static Record parse_record(byte* record_data, int* byte_index)
 
 		for (int i = 0; i < record.id_length; ++i)
 		{
+			if (*byte_index >= NLEN)
+			{
+				record.corrupted = 1;
+				return record;
+			}
+
 			record.id[i] = record_data[(*byte_index)++];
 		}
 	}
 
 	record.payload = (byte*)malloc(sizeof(byte) * record.payload_length);
 
-	for (int i = 0; i < record.payload_length; ++i)
+	for (unsigned int i = 0; i < record.payload_length; ++i)
 	{
+		if (*byte_index >= NLEN)
+		{
+			record.corrupted = 1;
+			return record;
+		}
+
 		record.payload[i] = record_data[(*byte_index)++];
 	}
-	
+
 	if (record.sp = (record.type_length == 2 && record.type[0] == 0x53 && record.type[1] == 0x70))
 	{
 		record.sp_records = parse_smart_poster(record.payload, record.payload_length, &(record.nb_sp_records));
 	}
 
-	// Final check before exiting
-	/*
-	if (byte_index > length)
-	{
-		mess("Failed to read payload", DO_NOT_FREE, NULL);
-	}
-	*/
-
 	return record;
+}
+
+// GUI Button Functions
+
+static void read(void)
+{
+	// Select & Read NDEF File
+	// Length:7; CLA:00 INS:A4 P1:00 P2:0C Lc:02 Data:E104 Le:-
+	if (nfc_forum_type_4_select("NDEF", &result, &length, io_data, 7,
+		0x00, 0xA4, 0x00, 0x0C, 0x02, NDEF_File[0], NDEF_File[1]))
+	{
+		int read_cycles = buffer_length / MLe;
+		int offset = 0;
+		byte* NDEF_data = (byte*)malloc(sizeof(byte) * buffer_length);
+
+		if (!NDEF_data)
+		{
+			CSC_AntennaOFF();
+			CSC_Close();
+			printf("Memory allocation failed!\n");
+			return;
+		}
+
+		for (int i = 0; i < read_cycles; i++)
+		{
+			offset = MLe * i;
+
+			// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
+			if (!nfc_forum_type_4_read_binary("NDEF", &result, &length, io_data,
+				0x00, 0xB0, (byte)(offset >> 8), (byte)offset, MLe))
+			{
+				return;
+			}
+
+			copy_string(io_data, NDEF_data, MLe, 1);
+			NDEF_data += MLe;
+		}
+
+		offset = MLe * read_cycles;
+
+		// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
+		if (!nfc_forum_type_4_read_binary("NDEF", &result, &length, io_data,
+			0x00, 0xB0, (byte)(offset >> 8), (byte)offset, buffer_length - offset))
+		{
+			return;
+		}
+
+		copy_string(io_data, NDEF_data, buffer_length - offset, 1);
+		NDEF_data -= offset;
+
+		printf("NDEF Data:\n");
+		display_data_hex(NDEF_data, buffer_length);
+
+		if (records)
+		{
+			free_records(records, record_length);
+		}
+
+		records = parse_ndef_file(NDEF_data, &record_length);
+		display_records(records, record_length, 0);
+		free(NDEF_data);
+	}
+}
+
+static void write(byte* data, unsigned int data_length)
+{
+	// Select & Update Binary NDEF File
+	// Length:7; CLA:00 INS:A4 P1:00 P2:0C Lc:02 Data:E104 Le:-
+	if (nfc_forum_type_4_select("NDEF", &result, &length, io_data, 7,
+		0x00, 0xA4, 0x00, 0x0C, 0x02, NDEF_File[0], NDEF_File[1]))
+	{
+		// Write URI 0x01(?) 0x61 0x70 0x70 0x6C 0x65 0x2E 0x63 0x6F 0x6D
+		// Write Text (?) 0x02, 0x66, 0x72, (?) 0x4C, 0x61, 0x20, 0x62, 0x65,
+		// 0x6C, 0x6C, 0x65, 0x20, 0x68, 0x69, 0x73, 0x74, 0x6f, 0x69, 0x72, 0x65
+		// Write Data 0x50, 0x4f, 0x4c, 0x59, 0x54, 0x45, 0x43, 0x48
+		// 003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348
+
+		const char* info = "NDEF";
+		int write_cycles = data_length / MLc;
+		int offset = 0;
+
+		for (int i = 0; i < write_cycles; i++)
+		{
+			offset = MLc * i;
+
+			if (!nfc_forum_type_4_update_binary(info, &result, &length, io_data, MLc,
+				0x00, 0xD6, (byte)(offset >> 8), (byte)offset, MLc, data))
+			{
+				return;
+			}
+
+			data += MLc;
+		}
+
+		offset = MLc * write_cycles;
+
+		if (!nfc_forum_type_4_update_binary(info, &result, &length, io_data, 5 + data_length - offset,
+			0x00, 0xD6, (byte)(offset >> 8), (byte)offset, data_length - offset, data))
+		{
+			return;
+		}
+	}
 }
 
 #ifdef _SMART_CARDS_
 
 int main(void)
 {
+	char input = '!';
+
 	fopen_s(&trace, "trace.txt", "w+");
-	execute();
+	printf("\n--------------------------------------------------\n");
+	printf("Initializing Smart Cards Program Test...\n");
+	initialize();
+	printf("\n\n\n");
+
+	while (input != '0')
+	{
+		printf("\n--------------------------------------------------");
+		printf("\n------------------- Main Menu --------------------\n");
+		printf("\n 0: Exit");
+		printf("\n 1: Read");
+		printf("\n 2: Write");
+		printf("\n--------------------------------------------------\n");
+
+		input = _getch();
+
+		switch (input)
+		{
+		case '0':
+			break;
+		case '1':
+			read();
+			break;
+		case '2':
+			printf("\n\n\n");
+			printf("\n--------------------------------------------------");
+			printf("\n------------------ Write Menu --------------------\n");
+			printf("\n 0: Exit");
+			printf("\n 1: Raw");
+			printf("\n--------------------------------------------------\n");
+
+			input = _getch();
+			byte* data = (byte*)malloc(sizeof(byte) * buffer_length * 2);
+			int data_length = 0;
+
+			switch (input)
+			{
+			case '0':
+				input = '!';
+				break;
+			case '1':
+				printf("Raw Data (hex), press enter to finish writing (Buffer Length = %d): ", buffer_length);
+				scanf("%s", data);
+				data_length = len(data);
+
+				while (data_length >= buffer_length * 2)
+				{
+					printf("Raw Data (hex), press enter to finish writing (Buffer Length = %d): ", buffer_length);
+					scanf("%s", data);
+				}
+
+				flush();
+				printf("Proceed writing? [y/n] ");
+				scanf("%c", &input);
+
+				if (input == 'n')
+				{
+					free(data);
+					break;
+				}
+				else if (input == 'y')
+				{
+					if (data = str_to_hex(data))
+					{
+						write(data, data_length / 2);
+					}
+
+					free(data);
+					break;
+				}
+
+				free(data);
+				printf("Invalid answer (%c)...\n", input);
+				input = '!';
+				break;
+			}
+
+			break;
+		default:
+			printf("%c is not a valid choice, please choose one of the 'Main Menu' choices ->\n", input);
+			break;
+		}
+	}
+
+	CSC_AntennaOFF();
+	CSC_Close();
 	fclose(trace);
 	printf("Press a Key.\n");
 	_getch();
@@ -1051,14 +1278,3 @@ int main(void)
 }
 
 #endif //_SMART_CARDS_
-
-
-/*
-
-2. Regarder si il y a 1 ou plusieurs record dans le champs NDEF (Comme on a le début et la fin -> 1 seul record)
-3. Longeur du champ type  ---> 0x5370 Sp = SmartPoster
-		===> Contient un certain nombre de records
-4. Longueur du champ payload
-5. ID length et longueur -> si il n'est pas là, le champ n'est pas présent
-
-*/
