@@ -4,10 +4,14 @@ import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
 import android.util.Log;
 
+import java.util.Arrays;
+
 public class cCardService extends HostApduService {
     @Override
     public byte[] processCommandApdu(byte[] commandApdu, Bundle extras) {
-        
+
+        Log.d("Command received : ", Arrays.toString(commandApdu));
+
         return new byte[]{(byte) 0x90, (byte) 0x00};
     }
 
