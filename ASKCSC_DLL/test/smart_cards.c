@@ -923,7 +923,8 @@ static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWOR
 	}
 }
 
-// When a field is omitted from the record, does that mean either the field is equal to 0 or the field is not present?
+// When a field is omitted from the record, does that mean 
+// either the field is equal to 0 or the field is not present?
 // I guess the second solution is correct.
 static Record* parse_ndef_file(byte* data, int* total_records)
 {
@@ -1195,8 +1196,9 @@ int main(void)
 		printf("\n--------------------------------------------------");
 		printf("\n------------------- Main Menu --------------------\n");
 		printf("\n 0: Exit");
-		printf("\n 1: Read");
-		printf("\n 2: Write");
+		printf("\n 1: Initialize");
+		printf("\n 2: Read");
+		printf("\n 3: Write");
 		printf("\n--------------------------------------------------\n");
 
 		input = _getch();
@@ -1206,9 +1208,12 @@ int main(void)
 		case '0':
 			break;
 		case '1':
-			read();
+			initialize();
 			break;
 		case '2':
+			read();
+			break;
+		case '3':
 			printf("\n\n\n");
 			printf("\n--------------------------------------------------");
 			printf("\n------------------ Write Menu --------------------\n");

@@ -10,7 +10,7 @@ public class cCardService extends HostApduService {
     @Override
     public byte[] processCommandApdu(byte[] commandApdu, Bundle extras) {
 
-        Log.d("Command received : ", Arrays.toString(commandApdu));
+        Log.d("Command received", Arrays.toString(commandApdu));
 
         return new byte[]{(byte) 0x90, (byte) 0x00};
     }
