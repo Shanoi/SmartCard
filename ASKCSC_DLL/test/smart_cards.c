@@ -1172,7 +1172,14 @@ static void write(byte* data, unsigned int data_length)
 
 /****************************************************************/
 
-#ifdef _SMART_CARDS_
+#ifdef _SMART_CARDS_CLI_
+
+/*
+ * To switch from console application to GUI application:
+ *     - right click on project -> properties
+ *     - click on linker -> System
+ *     - switch SubSystem from 'Console (/SUBSYSTEM:CONSOLE)' to 'Windows (/SUBSYSTEM:WINDOWS)'
+ */
 
 int main(void)
 {
@@ -1275,4 +1282,178 @@ int main(void)
 	return 0;
 }
 
-#endif //_SMART_CARDS_
+#endif //_SMART_CARDS_CLI_
+
+#ifdef _SMART_CARDS_GUI_
+
+/*
+ * To switch from GUI application to console application:
+ *     - right click on project -> properties
+ *     - click on linker -> System
+ *     - switch SubSystem from 'Windows (/SUBSYSTEM:WINDOWS)' to 'Console (/SUBSYSTEM:CONSOLE)'
+ */
+
+#ifndef UNICODE
+#define UNICODE
+#endif
+
+#define WINDOW_WIDTH  600
+#define WINDOW_HEIGHT 600
+
+#define MENU_ID_HELP 0x00
+
+#define BTN_ID_INITIALIZE 0x10
+#define BTN_ID_READ       0x11
+#define BTN_ID_WRITE      0x12
+
+#define TEXT_FIELD_WRITE 0x20
+
+static HWND write_field;
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+
+static void AddMenus(HWND hwnd);
+static void AddButtons(HWND hwnd);
+static void AddTextFields(HWND hwnd);
+
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow)
+{
+	MSG msg;
+
+	WNDCLASSW wc = { 0 };
+	wc.lpszClassName = L"Smart Cards";
+	wc.hInstance = hInstance;
+	wc.hbrBackground = GetSysColorBrush(COLOR_3DFACE);
+	wc.lpfnWndProc = WndProc;
+	wc.hCursor = LoadCursor(0, IDC_ARROW);
+	RegisterClassW(&wc);
+
+	CreateWindowW(
+		wc.lpszClassName, L"Smart Cards",
+		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_VISIBLE,
+		(GetSystemMetrics(SM_CXSCREEN) / 2) - (WINDOW_WIDTH / 2),
+		(GetSystemMetrics(SM_CYSCREEN) / 2) - (WINDOW_HEIGHT / 2),
+		WINDOW_WIDTH, WINDOW_HEIGHT, 0, 0, hInstance, 0
+	);
+
+	while (GetMessage(&msg, NULL, 0, 0))
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+
+	return (int)msg.wParam;
+}
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+{
+	char* data;
+	int data_length;
+
+	switch (msg)
+	{
+	case WM_CREATE:
+		AddMenus(hwnd);
+		AddButtons(hwnd);
+		AddTextFields(hwnd);
+		break;
+	case WM_COMMAND:
+		switch (LOWORD(wparam))
+		{
+			// Menus
+		case MENU_ID_HELP:
+			MessageBox(
+				hwnd, TEXT("Initialize Button:\nEstablish a connection between the reader and the NFC Device.\n"
+					"Finish reading and storing the information about the CC File.\n\n"
+					"Read Button:\nRead the content of the card and display it.\n\n"
+					"Write Button:\nWrite the content of the text field (raw data in hexadecimal format) "
+					"to the device"), TEXT("Help Information"), 0
+			);
+			break;
+
+			// Buttons
+		case BTN_ID_INITIALIZE:
+			initialize();
+			break;
+		case BTN_ID_READ:
+			read();
+			break;
+		case BTN_ID_WRITE:
+			data = (char*)malloc(sizeof(char) * buffer_length * 2);
+			data_length = GetWindowTextLength(write_field);
+			
+			if (data_length == 0 || data_length <= buffer_length * 2)
+			{
+				GetWindowText(write_field, data, data_length);
+
+				if (data = str_to_hex(data))
+				{
+					write(data, data_length / 2);
+				}
+				
+				free(data);
+			}
+			else
+			{
+				data_length ? MessageBox(hwnd, "Data length is bigger than the NDEF Max File Size.", L"Error", 0) : 
+					MessageBox(hwnd, "No data to write.", L"Error", 0);
+			}
+			break;
+		}
+		break;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+	}
+
+	return DefWindowProcW(hwnd, msg, wparam, lparam);
+}
+
+static void AddMenus(HWND hwnd)
+{
+	HMENU hMenubar = CreateMenu();
+	HMENU hMenu = CreateMenu();
+
+	AppendMenuW(hMenubar, MF_STRING, MENU_ID_HELP, L"&Help");
+	SetMenu(hwnd, hMenubar);
+}
+
+static void AddButtons(HWND hwnd)
+{
+	CreateWindowW(
+		L"Button", L"Initialize",
+		WS_CHILD | WS_TABSTOP | WS_VISIBLE | BS_DEFPUSHBUTTON,
+		(int)(WINDOW_WIDTH * 0.15), 20,
+		(int)(WINDOW_WIDTH * 0.25), 30,
+		hwnd, (HMENU)BTN_ID_INITIALIZE, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL
+	);
+
+	CreateWindowW(
+		L"Button", L"Read",
+		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+		(int)(WINDOW_WIDTH * 0.55), 20,
+		(int)(WINDOW_WIDTH * 0.25), 30,
+		hwnd, (HMENU)BTN_ID_READ, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL
+	);
+
+	CreateWindowW(
+		L"Button", L"Write",
+		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+		(int)(WINDOW_WIDTH * 0.75), 70,
+		(int)(WINDOW_WIDTH * 0.2), 30,
+		hwnd, (HMENU)BTN_ID_WRITE, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL
+	);
+}
+
+static void AddTextFields(HWND hwnd)
+{
+	CreateWindowW(
+		L"Edit", L"Write data as raw hex here. Ex: 003191010A5501",
+		WS_BORDER | WS_CHILD | ES_AUTOHSCROLL | ES_NOHIDESEL | WS_VISIBLE,
+		(int)(WINDOW_WIDTH * 0.05), 70,
+		(int)(WINDOW_WIDTH * 0.65), 30,
+		hwnd, (HMENU)TEXT_FIELD_WRITE, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL
+	);
+}
+
+#endif // _SMART_CARDS_GUI_
