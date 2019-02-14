@@ -217,7 +217,7 @@ static void display_data_string(byte* data, DWORD length)
 	printf(", Length=%d]\n", length);
 }
 
-static void display_data_hex(byte* data, DWORD length)
+static void display_data_string_to_hex(byte* data, DWORD length)
 {
 	printf("\t[Data HEX=0x");
 
@@ -569,7 +569,7 @@ static char nfc_forum_type_4_command(const char* command_type, const char *comma
 	if (*result == RCSC_Ok)
 	{
 		printf("%d. NFC Forum Type 4 %s (%s) successful...\n", step++, command_type, command_info);
-		display_data_hex(io_data, *length);
+		display_data_string_to_hex(io_data, *length);
 		return SUCCESS;
 	}
 	else
@@ -611,7 +611,7 @@ static char nfc_forum_type_4_select(const char* info, DWORD* result, DWORD* leng
 	if (*result == RCSC_Ok)
 	{
 		printf("%d. NFC Forum Type 4 Select (%s) successful...\n", step++, info);
-		display_data_hex(io_data, *length);
+		display_data_string_to_hex(io_data, *length);
 		return SUCCESS;
 	}
 	else
@@ -639,7 +639,7 @@ static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD*
 	if (*result == RCSC_Ok)
 	{
 		printf("%d. NFC Forum Type 4 Read Binary (%s) successful\n", step++, info);
-		display_data_hex(io_data, *length);
+		display_data_string_to_hex(io_data, *length);
 		return SUCCESS;
 	}
 	else
@@ -679,7 +679,7 @@ static char nfc_forum_type_4_update_binary_hard(const char* info, DWORD* result,
 	if (*result == RCSC_Ok)
 	{
 		printf("%d. NFC Forum Type 4 Update Binary (%s) successful...\n", step++, info);
-		display_data_hex(io_data, *length);
+		display_data_string_to_hex(io_data, *length);
 		return SUCCESS;
 	}
 	else
@@ -714,7 +714,7 @@ static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWOR
 	if (*result == RCSC_Ok)
 	{
 		printf("%d. NFC Forum Type 4 Update Binary (%s) successful...\n", step++, info);
-		display_data_hex(io_data, *length);
+		display_data_string_to_hex(io_data, *length);
 		return SUCCESS;
 	}
 	else
@@ -918,7 +918,7 @@ static void read(void)
 		NDEF_data -= offset;
 
 		printf("NDEF Data:\n");
-		display_data_hex(NDEF_data, buffer_length);
+		display_data_string_to_hex(NDEF_data, buffer_length);
 
 		if (records)
 		{
@@ -963,7 +963,7 @@ static void write(byte* data, unsigned int data_length)
 	}
 }
 
-#ifdef _SMART_CARDS_
+#ifdef _SMART_CARDS_PROD_
 
 int main(void)
 {
@@ -1066,4 +1066,4 @@ int main(void)
 	return 0;
 }
 
-#endif //_SMART_CARDS_
+#endif //_SMART_CARDS_PROD_

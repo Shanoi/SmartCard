@@ -77,66 +77,48 @@
 		cours de la lecture (via une boucle). La Length correspond
 		au MaxLe qui a été extrait dans l'étape 8.
 	- Etape 11 - décodage du fichier NDEF :
-		0022
-			D102/1D ---> Taille
-				5370 ---> Smart Poster
-					9101/11/8801-70 617261676F6E2D726669642E62F6D ---> 91 -> Short record. 11 -> 17 octets pour la ressource. Utiliser les tables pour le type de l'URI  0x70... URL encodée
-					5101/04/5400-504944 --> UTF 8 dont on ne connait pas la longueur
+		Les deux premiers octets indique le nombre d'octets à lire dans le fichier.
+		Type 5370 pour Sp (Smart Poster).
+		Type 55 pour U (URI).
+		Type 54 pour T (Text).
+		Pas de type pour les Data.
+	- Etape 11 - écriture sur la carte :
+		Création de 3 records :
+		- Record #1:
+			Header         = 0x91 (MB: 1, ME: 0, CF: 0, SR: 1, IL: 0, TNF: 001)
+			Type Length    = 0x01
+			Payload Length = 0x0A
+			ID Length      = -
+			Type           = 0x55
+			ID             = -
+			Payload        = 0x01 (http://www.) 0x61 0x70 0x70 0x6C 0x65 0x2E 0x63 0x6F 0x6D (apple.com)
+		- Record #2:
+			Header         = 0x11 (MB: 0, ME: 0, CF: 0, SR: 1, IL: 0, TNF: 001)
+			Type Length    = 0x01
+			Payload Length = 0x14
+			ID Length      = -
+			Type           = 0x54
+			ID             = -
+			Payload        = 0x02 (UTF-8 Language 2-byte)
+							 0x66 0x72 0x4C 0x61 0x20 0x62 0x65 0x6C 0x6C 0x65
+							 0x20 0x68 0x69 0x73 0x74 0x6F 0x69 0x72 0x65 (La belle histoire)
+		- Record #3:
+			Header         = 0x51 (MB: 0, ME: 1, CF: 0, SR: 1, IL: 0, TNF: 001)
+							 Mettre TNF à unknown sera mal interprété par la suite
+			Type Length    = 0x00 (Le type devient unknown avec cette valeur)
+			Payload Length = 0x08
+			ID Length      = -
+			Type           = -
+			ID             = -
+			Payload        = 0x50 0x4F 0x4C 0x59 0x54 0x45 0x43 0x48 (POLYTECH)
 
-	Enter hunt phase parameters --> autoselect = 0
-	=== > Désactivation de l'envoie SELECT APPLI automatique lors de la phase anticollision
+		Lors de la phase d'écriture, au même titre que lors de la phase de lecture,
+		il faudra vérifier que la quantité à écrire n'excède pas MLc et faire des calculs
+		similaires à ceux réalisés lors de l'écriture.
+
+	Enter hunt phase parameters: autoselect = 0
+	Désactivation de l'envoie SELECT APPLI automatique lors de la phase anticollision
 	Mettre après version CSC autoselect à 0
-
-	Création d'une instanciation sur carte RFID
-
-	=> 3 Records à créer
-
-	Entête :
-	MB 1
-	ME 1
-	CF 0
-	SR 0
-	IL
-	TNF 00
-	==> 0x91
-	Type Length = 0x01
-	Payload Length =
-	ID Length = A calculer
-	Type = 0x55
-	ID = Ué
-	Payload = 0x01 "www.apple.com"
-
-	Entête 2 :
-	MB 0
-	ME 0
-	CF 0
-	SR 1
-	IL 0
-	TNF 00
-	==> 0x
-	Type Length = 0x01
-	Payload Length = 0x12
-	ID Length
-	Type = 0x54
-	ID
-	Payload = UTF-8_2 ... => 0x02
-
-	Entête 3 :
-	MB 0
-	ME 1
-	CF 0
-	SR 1
-	IL 0
-	TNF 001 => Si on met unknown =, c'est mal interprété par la suite
-	==> 0x
-	Type Length = 0x00 ==> Type devient unknown
-	Payload Length = 0x08
-	ID Length -
-	Type -
-	ID -
-	Payload = UTF-8_2 ... => 0x02
-
-	Write en fonction de MLc pour savoir le découpage que l'on va faire
 
 *****************************************************************/
 
@@ -188,7 +170,14 @@
 #define YES "Yes"
 #define NO  "No"
 
+#define SELECT        "SELECT"
+#define READ_BINARY   "Read Binary"
+#define UPDATE_BINARY "Update Binary"
+
+// Error Logging file
 static FILE *trace;
+
+// Track the step number of a single program run
 static int step = 1;
 
 enum TNF {
@@ -197,7 +186,7 @@ enum TNF {
 };
 
 /*
- * mb: 1-bit Message Begin, useful when interpreted considering the ME flag's value.
+ * mb            : 1-bit Message Begin, useful when interpreted considering the ME flag's value.
  * me            : 1-bit Message End, useful in case of chunked payloads.
  * cf            : 1-bit Chunk Flag, set when this is the first chunk of a chunked NDEF message.
  * sr            : 1-bit Short Record, set when the record is short (8-bits payload length)
@@ -214,7 +203,9 @@ enum TNF {
  * sp            : Smart Poster (SP). Type equals 0x5370 (Sp)
  * sp_records    : If this record is a smart poster, then sp_records contains the subrecord(s).
  * nb_sp_records : The number of subrecords of a smart poster record. (1 <= nb_sp_records <= 4).
-*/
+ *
+ * corrupted     : 1 if the record is corrupted, 0 otherwise.
+ */
 typedef struct record {
 	char mb;
 	char me;
@@ -252,6 +243,12 @@ static int record_length;
 	FUNCTION DECLARATIONS
 *****************************************************************/
 
+/******************** AskCSC / NFC Funcions *********************/
+
+/*
+ * Establish a connection between the reader and the NFC Card / Device.
+ * Finish reading and storing the information about the CC File.
+ */
 static void initialize(void);
 static char search_csc(DWORD* result);
 static char reset_csc(DWORD* result, byte io_data[]);
@@ -261,27 +258,43 @@ static char search_card(
 	DWORD* result, sCARD_SearchExt* search, DWORD search_mask,
 	BYTE forget, BYTE timeout, LPBYTE COM, LPDWORD length, BYTE* data
 );
+
+/****************************************************************/
+
+/********************** NFC Forum Type 4 ************************/
+
 static char nfc_forum_type_4_command(const char* command_type, const char *command_info,
 	DWORD* result, DWORD* length, byte io_data[], int len,
 	byte cla, byte ins, byte p1, byte p2, ...);
-static char nfc_forum_type_4_select(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
-	byte cla, byte ins, byte p1, byte p2, byte lc, ...);
-static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD* length, byte io_data[],
-	byte cla, byte ins, byte p1, byte p2, byte le);
-static char nfc_forum_type_4_update_binary_hard(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
-	byte cla, byte ins, byte p1, byte p2, byte lc, ...);
+static char nfc_forum_type_4_command_varargs(const char* command_type, const char *command_info,
+	DWORD* result, DWORD* length, byte io_data[], int len,
+	byte cla, byte ins, byte p1, byte p2, ...);
 static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
 	byte cla, byte ins, byte p1, byte p2, byte lc, byte* data);
+
 static Record* parse_ndef_file(byte* data, int* total_records);
 static Record* parse_smart_poster(byte* data, int data_length, char* total_records);
 static Record parse_record(byte* data, int* byte_index, int NLEN);
 static void read(void);
 static void write(byte* data, unsigned int data_length);
 
+/****************************************************************/
+
+/*********************** Util Functions *************************/
+
+static unsigned int len(byte* str);
+
 /*****************************************************************
 	FUNCTION IMPLEMENTATIONS
 *****************************************************************/
 
+/*********************** Display Funcions ***********************/
+
+/*
+ * Display an error in the standard output.
+ * char to_free: 1 if text is a pointer to char to free, 0 otherwise.
+ * DWORD result: the result gotten from the failing operation.
+ */
 static char mess(char* text, char to_free, DWORD result)
 {
 	printf("\nSmart Cards Program Stopped:\n\t%s\n", text);
@@ -389,19 +402,7 @@ static void display_TNF(char tnf)
 	}
 }
 
-static void display_data_string(byte* data, DWORD length)
-{
-	printf("\t[Data STR=");
-
-	for (unsigned int i = 0; i < length; ++i)
-	{
-		printf("%c", data[i]);
-	}
-
-	printf(", Length=%d]\n", length);
-}
-
-static void display_data_hex(byte* data, DWORD length)
+static void display_data_string_to_hex(byte* data, DWORD length)
 {
 	printf("\t[Data HEX=0x");
 
@@ -413,6 +414,22 @@ static void display_data_hex(byte* data, DWORD length)
 	printf(", Length=%d]\n", length);
 }
 
+static void display_data_hex_to_string(byte* data, DWORD length)
+{
+	printf("\t[Data STR=");
+
+	for (unsigned int i = 0; i < length; ++i)
+	{
+		printf("%c", data[i]);
+	}
+
+	printf(", Length=%d]\n", length);
+}
+
+/*
+ * DWORD length: the number of records.
+ * int level   : the indentation level.
+ */
 static void display_records(Record* records, DWORD length, int level)
 {
 	char* indent = (char*)malloc(sizeof(char) * level + 1);
@@ -496,50 +513,22 @@ static void display_records(Record* records, DWORD length, int level)
 	free(indent);
 }
 
-static void free_records(Record* records, int length)
-{
-	if (!records)
-	{
-		return;
-	}
+/****************************************************************/
 
-	for (int i = 0; i < length; records++, ++i)
-	{
-		free(records->type);
-		free(records->id);
-		free(records->payload);
+/******************** Conversion Functions **********************/
 
-		if (records->sp)
-		{
-			free_records(records->sp_records, records->nb_sp_records);
-		}
-	}
-
-	records -= length;
-	free(records);
-}
-
-static unsigned int len(byte* str)
-{
-	unsigned int len = 0;
-	for (; *str != '\0'; str++, ++len);
-	return len;
-}
-
-static void copy_string(char* source, char* destination, unsigned int length, unsigned int source_offset)
-{
-	source += source_offset;
-
-	for (; length > 0; *destination++ = *source++, --length);
-}
-
+/*
+ * Convert a string in hexadecimal format to the equivalent decimal result.
+ * int from: where to begin in the hex string.
+ * int to  : where to stop in the hex string.
+ */
 static long hex_to_dec(byte* hex, int from, int to)
 {
 	long base = 1; // 16^0 = 1;
 	long dec = 0;
 	int length = (int)strlen(hex);
 	int start = from > -1 ? from : 0;
-	int end = to > -1 && to < (int)length ? to : (int)length - 1;
+	int end = to > -1 && to < length ? to : length - 1;
 
 	if (length > 2 && hex[start] == '0' && hex[start + 1] == 'x')
 	{
@@ -567,6 +556,12 @@ static long hex_to_dec(byte* hex, int from, int to)
 	return dec;
 }
 
+/*
+ * Convert a string in hexadecimal format to a format where each byte is the
+ * concatenation of two characters of the original string ("4F" => 177 => 'O').
+ * int from: where to begin in the hex string.
+ * int to  : where to stop in the hex string.
+ */
 static byte* str_to_hex(byte* data)
 {
 	unsigned int data_length = len(data);
@@ -588,11 +583,74 @@ static byte* str_to_hex(byte* data)
 	return hex_data;
 }
 
+/****************************************************************/
+
+/*********************** Util Functions *************************/
+
+/*
+ * Compute the length of the unsigned char pointer str.
+ * In contrast to the standard strlen, this function takes in parameter
+ * an unsigned char pointer.
+ */
+static unsigned int len(byte* str)
+{
+	unsigned int len = 0;
+	for (; *str != '\0'; str++, ++len);
+	return len;
+}
+
+/*
+ * Ad-Hoc copy string function, replacing the standard strcpy function.
+ * This function doesn't stop copying when reaching the null character as
+ * there could be null character coming from hexadecimal value read from
+ * the card.
+ *
+ * unsigned int length       : the length specifying when to stop copying.
+ * unsigned int source_offset: the offset applied to the source string.
+ */
+static void copy_string(char* source, char* destination, unsigned int length, unsigned int source_offset)
+{
+	for (source += source_offset; length > 0; *destination++ = *source++, --length);
+}
+
+/*
+ * Flushes the standard output.
+ */
 static flush()
 {
 	int c;
 	while ((c = getchar()) != '\n' && c != EOF);
 }
+
+/*
+ * Free a structure.
+ */
+static void free_records(Record* records, int length)
+{
+	if (!records)
+	{
+		return;
+	}
+
+	for (int i = 0; i < length; records++, ++i)
+	{
+		free(records->type);
+		free(records->id);
+		free(records->payload);
+
+		if (records->sp)
+		{
+			free_records(records->sp_records, records->nb_sp_records);
+		}
+	}
+
+	records -= length;
+	free(records);
+}
+
+/****************************************************************/
+
+/******************** AskCSC / NFC Funcions *********************/
 
 void initialize(void)
 {
@@ -621,7 +679,7 @@ void initialize(void)
 	{
 		// Select Application
 		// Length:13; CLA:00 INS:A4 P1:04 P2:00 Lc:07 Data:D2760000850101 Le:00
-		if (!nfc_forum_type_4_select("Application", &result, &length, io_data, 13,
+		if (!nfc_forum_type_4_command_varargs(SELECT, "Application", &result, &length, io_data, 13,
 			0x00, 0xA4, 0x04, 0x00, 0x07, 0xD2, 0x76, 0x00, 0x00, 0x85, 0x01, 0x01, 0x00) ||
 			(io_data[1] != 0x90 && io_data[2] != 0x00) ||
 			(io_data[1] != 0x62 && io_data[2] != 0x00 && io_data[3] != 0x90 && io_data[4] != 0x00))
@@ -631,11 +689,11 @@ void initialize(void)
 
 		// Select & Read CC File
 		// Length:7; CLA:00 INS:A4 P1:00 P2:0C Lc:02 Data:E103 Le:-
-		if (nfc_forum_type_4_select("CC", &result, &length, io_data, 7,
+		if (nfc_forum_type_4_command_varargs(SELECT, "CC", &result, &length, io_data, 7,
 			0x00, 0xA4, 0x00, 0x0C, 0x02, 0xE1, 0x03))
 		{
 			// Length:5; CLA:00 INS:B0 P1:00 P2:00 Lc:- Data:- Le:0F
-			if (nfc_forum_type_4_read_binary("CC", &result, &length, io_data, 0x00, 0xB0, 0x00, 0x00, 0x0F))
+			if (nfc_forum_type_4_command_varargs(READ_BINARY, "CC", &result, &length, io_data, 5, 0x00, 0xB0, 0x00, 0x00, 0x0F))
 			{
 				MLe = (io_data[4] << 8) + io_data[5];
 				MLc = (io_data[6] << 8) + io_data[7];
@@ -738,7 +796,50 @@ static char search_card(
 	}
 }
 
+/****************************************************************/
+
+/********************** NFC Forum Type 4 ************************/
+
 static char nfc_forum_type_4_command(const char* command_type, const char *command_info,
+	DWORD* result, DWORD* length, byte io_data[], int len,
+	byte cla, byte ins, byte p1, byte p2, byte* data)
+{
+	char index = 0;
+
+	io_data[index++] = cla;
+	io_data[index++] = ins;
+	io_data[index++] = p1;
+	io_data[index++] = p2;
+
+	while (index != len)
+	{
+		io_data[index++] = *data++;
+	}
+
+	*result = CSC_ISOCommand(io_data, len, io_data, length);
+
+	if (*result == RCSC_Ok)
+	{
+		printf("%d. NFC Forum Type 4 %s (%s) successful...\n", step++, command_type, command_info);
+		display_data_string_to_hex(io_data, *length);
+		return SUCCESS;
+	}
+	else
+	{
+		char* message = (char*)malloc(sizeof(char) * 100);
+		strcpy(message, "NFC Forum Type 4 ");
+		strcat(message, command_type);
+		strcat(message, " (");
+		strcat(message, command_info);
+		strcat(message, ") failure!");
+		display_data_string_to_hex(io_data, *length);
+
+		return mess(message, FREE, *result);
+	}
+}
+
+static char nfc_forum_type_4_command_varargs(
+	const char* command_type, const char *command_info,
 	DWORD* result, DWORD* length, byte io_data[], int len,
 	byte cla, byte ins, byte p1, byte p2, ...)
 {
@@ -764,7 +865,7 @@ static char nfc_forum_type_4_command(const char* command_type, const char *comma
 	if (*result == RCSC_Ok)
 	{
 		printf("%d. NFC Forum Type 4 %s (%s) successful...\n", step++, command_type, command_info);
-		display_data_hex(io_data, *length);
+		display_data_string_to_hex(io_data, *length);
 		return SUCCESS;
 	}
 	else
@@ -775,114 +876,7 @@ static char nfc_forum_type_4_command(const char* command_type, const char *comma
 		strcat(message, " (");
 		strcat(message, command_info);
 		strcat(message, ") failure!");
-
-		return mess(message, FREE, *result);
-	}
-}
-
-static char nfc_forum_type_4_select(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
-	byte cla, byte ins, byte p1, byte p2, byte lc, ...)
-{
-	char index = 0;
-
-	io_data[index++] = cla;
-	io_data[index++] = ins;
-	io_data[index++] = p1;
-	io_data[index++] = p2;
-	io_data[index++] = lc;
-
-	va_list args;
-	va_start(args, lc);
-
-	while (index != len)
-	{
-		io_data[index++] = va_arg(args, byte);
-	}
-
-	va_end(args);
-
-	*result = CSC_ISOCommand(io_data, len, io_data, length);
-
-	if (*result == RCSC_Ok)
-	{
-		printf("%d. NFC Forum Type 4 Select (%s) successful...\n", step++, info);
-		display_data_hex(io_data, *length);
-		return SUCCESS;
-	}
-	else
-	{
-		char* message = (char*)malloc(sizeof(char) * 100);
-		strcpy(message, "NFC Forum Type 4 Select (");
-		strcat(message, info);
-		strcat(message, ") failure!");
-
-		return mess(message, FREE, *result);
-	}
-}
-
-static char nfc_forum_type_4_read_binary(const char* info, DWORD* result, DWORD* length, byte io_data[],
-	byte cla, byte ins, byte p1, byte p2, byte le)
-{
-	io_data[0] = cla;
-	io_data[1] = ins;
-	io_data[2] = p1;
-	io_data[3] = p2;
-	io_data[4] = le;
-
-	*result = CSC_ISOCommand(io_data, 5, io_data, length);
-
-	if (*result == RCSC_Ok)
-	{
-		printf("%d. NFC Forum Type 4 Read Binary (%s) successful\n", step++, info);
-		display_data_hex(io_data, *length);
-		return SUCCESS;
-	}
-	else
-	{
-		char* message = (char*)malloc(sizeof(char) * 100);
-		strcpy(message, "NFC Forum Type 4 Read Binary (");
-		strcat(message, info);
-		strcat(message, ") failure!");
-
-		return mess(message, FREE, *result);
-	}
-}
-
-static char nfc_forum_type_4_update_binary_hard(const char* info, DWORD* result, DWORD* length, byte io_data[], int len,
-	byte cla, byte ins, byte p1, byte p2, byte lc, ...)
-{
-	char index = 0;
-
-	io_data[index++] = cla;
-	io_data[index++] = ins;
-	io_data[index++] = p1;
-	io_data[index++] = p2;
-	io_data[index++] = lc;
-
-	va_list args;
-	va_start(args, lc);
-
-	while (index != len)
-	{
-		io_data[index++] = va_arg(args, byte);
-	}
-
-	va_end(args);
-
-	*result = CSC_ISOCommand(io_data, len, io_data, length);
-
-	if (*result == RCSC_Ok)
-	{
-		printf("%d. NFC Forum Type 4 Update Binary (%s) successful...\n", step++, info);
-		display_data_hex(io_data, *length);
-		return SUCCESS;
-	}
-	else
-	{
-		char* message = (char*)malloc(sizeof(char) * 100);
-		strcpy(message, "NFC Forum Type 4 Update Binary (");
-		strcat(message, info);
-		strcat(message, ") failure!");
+		display_data_string_to_hex(io_data, *length);
 
 		return mess(message, FREE, *result);
 	}
@@ -909,7 +903,7 @@ static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWOR
 	if (*result == RCSC_Ok)
 	{
 		printf("%d. NFC Forum Type 4 Update Binary (%s) successful...\n", step++, info);
-		display_data_hex(io_data, *length);
+		display_data_string_to_hex(io_data, *length);
 		return SUCCESS;
 	}
 	else
@@ -923,9 +917,6 @@ static char nfc_forum_type_4_update_binary(const char* info, DWORD* result, DWOR
 	}
 }
 
-// When a field is omitted from the record, does that mean 
-// either the field is equal to 0 or the field is not present?
-// I guess the second solution is correct.
 static Record* parse_ndef_file(byte* data, int* total_records)
 {
 	int mem_size = sizeof(Record);
@@ -1083,7 +1074,7 @@ static void read(void)
 {
 	// Select & Read NDEF File
 	// Length:7; CLA:00 INS:A4 P1:00 P2:0C Lc:02 Data:E104 Le:-
-	if (nfc_forum_type_4_select("NDEF", &result, &length, io_data, 7,
+	if (nfc_forum_type_4_command_varargs(SELECT, "NDEF", &result, &length, io_data, 7,
 		0x00, 0xA4, 0x00, 0x0C, 0x02, NDEF_File[0], NDEF_File[1]))
 	{
 		int read_cycles = buffer_length / MLe;
@@ -1103,7 +1094,7 @@ static void read(void)
 			offset = MLe * i;
 
 			// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
-			if (!nfc_forum_type_4_read_binary("NDEF", &result, &length, io_data,
+			if (!nfc_forum_type_4_command_varargs(READ_BINARY, "NDEF", &result, &length, io_data, 5,
 				0x00, 0xB0, (byte)(offset >> 8), (byte)offset, MLe))
 			{
 				return;
@@ -1116,7 +1107,7 @@ static void read(void)
 		offset = MLe * read_cycles;
 
 		// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
-		if (!nfc_forum_type_4_read_binary("NDEF", &result, &length, io_data,
+		if (!nfc_forum_type_4_command_varargs(READ_BINARY, "NDEF", &result, &length, io_data, 5,
 			0x00, 0xB0, (byte)(offset >> 8), (byte)offset, buffer_length - offset))
 		{
 			return;
@@ -1126,7 +1117,7 @@ static void read(void)
 		NDEF_data -= offset;
 
 		printf("NDEF Data:\n");
-		display_data_hex(NDEF_data, buffer_length);
+		display_data_string_to_hex(NDEF_data, buffer_length);
 
 		if (records)
 		{
@@ -1143,7 +1134,7 @@ static void write(byte* data, unsigned int data_length)
 {
 	// Select & Update Binary NDEF File
 	// Length:7; CLA:00 INS:A4 P1:00 P2:0C Lc:02 Data:E104 Le:-
-	if (nfc_forum_type_4_select("NDEF", &result, &length, io_data, 7,
+	if (nfc_forum_type_4_command_varargs(SELECT, "NDEF", &result, &length, io_data, 7,
 		0x00, 0xA4, 0x00, 0x0C, 0x02, NDEF_File[0], NDEF_File[1]))
 	{
 		// Write URI 0x01(?) 0x61 0x70 0x70 0x6C 0x65 0x2E 0x63 0x6F 0x6D
@@ -1179,6 +1170,8 @@ static void write(byte* data, unsigned int data_length)
 	}
 }
 
+/****************************************************************/
+
 #ifdef _SMART_CARDS_
 
 int main(void)
@@ -1187,7 +1180,7 @@ int main(void)
 
 	fopen_s(&trace, "trace.txt", "w+");
 	printf("\n--------------------------------------------------\n");
-	printf("Initializing Smart Cards Program Test...\n");
+	printf("Initializing Smart Cards Test Program...\n");
 	initialize();
 	printf("\n\n\n");
 
