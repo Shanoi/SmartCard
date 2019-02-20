@@ -9,6 +9,7 @@ import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
 import static com.example.smartcard.HexaValues.ReturnCode.P1_2_INCORRECT_SELECT;
 
 public class SelectAppliState implements ReadingState {
+
     @Override
     public byte[] apply(State state, byte[] commandApdu) {
 
@@ -20,16 +21,16 @@ public class SelectAppliState implements ReadingState {
             return LC_INCORRECT;
         }
 
-        for (int i = 0; i < 7; i++){
+        for (int i = 0; i < 7; i++) {
 
-            if (commandApdu[5 + i] != AID1[i]){
-
+            if (commandApdu[5 + i] != AID1[i]) {
                 return AID_LID_UNKNOWN;
-
             }
 
         }
 
+        state.setApplicationSelected(true);
+        state.setState(new InitialState());
         return OK_CODE;
 
     }
