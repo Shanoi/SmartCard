@@ -160,4 +160,7 @@ static void copy_string(char* source, char* destination, unsigned int length, un
 static void flush();
 static void free_records(Record* records, int length);
 
+// GUI Functions
+static void AppendText(HWND hwnd, char *new_text);
+
 /****************************************************************/
