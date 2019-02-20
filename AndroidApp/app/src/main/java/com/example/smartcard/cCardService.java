@@ -4,7 +4,12 @@ import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
 import android.util.Log;
 
+import com.example.smartcard.statemachine.InitialState;
+import com.example.smartcard.statemachine.State;
+
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import static com.example.smartcard.HexaValues.APDUOffset.CLA;
 import static com.example.smartcard.HexaValues.APDUOffset.INS;
@@ -18,16 +23,13 @@ import static com.example.smartcard.HexaValues.ReturnCode.P1_2_INCORRECT_SELECT;
 
 public class cCardService extends HostApduService {
 
-
-    private static byte[] CCLEN = new byte[]{(byte) 0x00, (byte) 0x00};
-    private static byte[] MappingVersion = new byte[]{(byte) 0xff};
-    private static byte[] MLe = new byte[]{(byte) 0x00, (byte) 0xff};
-    private static byte[] MLc = new byte[]{(byte) 0x00, (byte) 0xff};
-    private static byte[] NDEFFile = new byte[]{(byte) 0x81, (byte) 0x01};
-
     private byte[] authorizedINS = new byte[]{(byte) 0xa4, (byte) 0xB0, (byte) 0xd6};
 
     private static final String TAG_APDU = "Command APDU";
+
+    private State currentState;
+
+    private List<State> stateToExecute;
 
     @Override
     public byte[] processCommandApdu(byte[] commandApdu, Bundle extras) {
@@ -49,26 +51,17 @@ public class cCardService extends HostApduService {
 
         if (commandApdu[INS] == 0xa4) {
 
+            return currentState.execute(commandApdu);
 
-            if (commandApdu[2] == 0x04) {
-
-
-
-            } else if (commandApdu[P1] == 0x00 && commandApdu[P2] == 0x0c) {
-
-
-            }
-
-            Log.d(TAG_APDU, "P1 / P2 Incorrect for SELECT");
-            return P1_2_INCORRECT_SELECT;
         }
 
-        if (commandApdu[INS] == 0xE0){
+        if (commandApdu[INS] == 0xE0) {
 
             Log.d(TAG_APDU, "No compliant state");
             return NO_COMPLIANT_STATE;
 
         }
+
 
         return OK_CODE;
     }
@@ -81,6 +74,9 @@ public class cCardService extends HostApduService {
     @Override
     public void onCreate() {
         super.onCreate();
+
+        stateToExecute = new ArrayList<>();
+        currentState = new State(new InitialState());
 
 
 //        File file = new File(getBaseContext().getCacheDir(), "NDEFFile");
@@ -99,15 +95,7 @@ public class cCardService extends HostApduService {
 
     }
 
-    private byte[] ccFile() {
 
-        return new byte[]{CCLEN[0], CCLEN[1],
-                MappingVersion[0],
-                MLe[0], MLe[1],
-                MLc[0], MLc[1],
-                NDEFFile[0], NDEFFile[1]};
-
-    }
 
     private String print(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
