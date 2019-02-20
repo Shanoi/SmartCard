@@ -7,6 +7,7 @@ public class State {
     private boolean applicationSelected;
 
     private byte[] currentFile;
+    private boolean fileSelected;
 
     public State(ReadingState state) {
         this.state = state;
@@ -37,11 +38,18 @@ public class State {
         this.currentFile = currentFile;
     }
 
+    public void setFileSelected(boolean b) {
+        this.fileSelected = b;
+    }
+
+    public boolean isFileSelected() {
+        return fileSelected;
+    }
+
     public byte[] execute(byte[] commandApdu) {
 
         return state.apply(this, commandApdu);
 
     }
-
 }
 

@@ -36,7 +36,7 @@ public class cCardService extends HostApduService {
 
         Log.d("Command received", print(commandApdu));
 
-        if (commandApdu[CLA] != 0x00) {
+        if (commandApdu[CLA] != (byte) 0x00) {
             Log.d(TAG_APDU, "CLA Unknown");
             return CLA_UNKNOWN;
 
@@ -49,13 +49,21 @@ public class cCardService extends HostApduService {
 
         }
 
-        if (commandApdu[INS] == 0xa4) {
+        if (commandApdu[INS] == (byte) 0xa4) {
 
+            Log.d(TAG_APDU, "State Machine STATE");
             return currentState.execute(commandApdu);
 
         }
 
-        if (commandApdu[INS] == 0xE0) {
+        if (commandApdu[INS] == (byte) 0xB0) {
+
+            Log.d(TAG_APDU, "State Machine STATE B0");
+            return currentState.execute(commandApdu);
+
+        }
+
+        if (commandApdu[INS] == (byte) 0xE0) {
 
             Log.d(TAG_APDU, "No compliant state");
             return NO_COMPLIANT_STATE;
@@ -75,7 +83,7 @@ public class cCardService extends HostApduService {
     public void onCreate() {
         super.onCreate();
 
-        stateToExecute = new ArrayList<>();
+
         currentState = new State(new InitialState());
 
 
@@ -94,7 +102,6 @@ public class cCardService extends HostApduService {
 
 
     }
-
 
 
     private String print(byte[] bytes) {
@@ -123,7 +130,7 @@ public class cCardService extends HostApduService {
 // Faire une machine d'état
 
 // Créer un CC file en dur et ne plus y toucher
-// Le NDEF file doit être créé dans la mémoire internet et contiendra les infos que le lecteur récupère
+// Le NDEF file doit être créé dans la mémoire interne et contiendra les infos que le lecteur récupère
 //   --> gestion au onCreate de classe service
 //      --> si existe l'utiliser            Dans la mémoire de l'appli
 //      --> si n'existe pas le créer
