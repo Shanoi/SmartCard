@@ -359,12 +359,20 @@ static void display_records(Record* records, DWORD length, int level)
 				printf("%02X", records->payload[j]);
 			}
 
+			char* result = (char*)malloc(sizeof(char) * records->payload_length + 2);
 			printf(" ");
 
 			for (unsigned int j = 0; j < records->payload_length; ++j)
 			{
 				printf("%c", records->payload[j]);
+				*result++ = (char)records->payload[j];
 			}
+
+			*result++ = '\n';
+			*result++ = '\0';
+			result -= records->payload_length + 2;
+			AppendText(log_field, result);
+			free(result);
 		}
 
 		printf("\n");
@@ -577,6 +585,7 @@ void initialize(void)
 					io_data[4], io_data[5], MLe, io_data[6], io_data[7], MLc,
 					io_data[12], io_data[13], buffer_length,
 					NDEF_File[0], NDEF_File[1]);
+				AppendText(log_field, "Initialize done!\n");
 			}
 		}
 	}
@@ -995,6 +1004,7 @@ static void read(void)
 			free_records(records, record_length);
 		}
 
+		AppendText(log_field, "Read result:\n");
 		records = parse_ndef_file(NDEF_data, &record_length);
 		display_records(records, record_length, 0);
 		free(NDEF_data);
@@ -1335,6 +1345,22 @@ static void AddTextFields(HWND hwnd)
 		(int)(WINDOW_WIDTH * 0.925), (int)(WINDOW_HEIGHT * 0.675),
 		hwnd, (HMENU)TEXT_FIELD_LOG, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL
 	);
+}
+
+static void AppendText(HWND hwnd, char *new_text)
+{
+	int content_length = GetWindowTextLength(hwnd) + lstrlen(new_text) + 1;
+	char* buffer = (char*)GlobalAlloc(GPTR, sizeof(char) * content_length);
+	
+	if (!buffer)
+	{
+		return;
+	}
+
+	GetWindowText(hwnd, buffer, content_length);
+	_tcscat_s(buffer, content_length, new_text);
+	SetWindowText(hwnd, buffer);
+	GlobalFree(buffer);
 }
 
 #endif // _SMART_CARDS_GUI_
