@@ -95,6 +95,10 @@ static int buffer_length;
 static Record* records;
 static int record_length;
 
+// GUI
+static HWND write_field;
+static HWND log_field;
+
 /*****************************************************************
 	FUNCTION DECLARATIONS
 *****************************************************************/

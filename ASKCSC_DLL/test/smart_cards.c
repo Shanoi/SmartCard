@@ -1180,9 +1180,6 @@ int main(void)
 #define TEXT_FIELD_WRITE 0x20
 #define TEXT_FIELD_LOG   0x21
 
-static HWND write_field;
-static HWND log_field;
-
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
 static void AddMenus(HWND hwnd);
@@ -1200,6 +1197,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
 	wc.lpfnWndProc = WndProc;
 	wc.hCursor = LoadCursor(0, IDC_ARROW);
 	RegisterClassW(&wc);
+
+	AllocConsole();
+	freopen("CON", "w", stdout);
 
 	CreateWindowW(
 		wc.lpszClassName, L"Smart Cards",
@@ -1254,7 +1254,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		case BTN_ID_WRITE:
 			data = (char*)malloc(sizeof(char) * buffer_length * 2);
 			data_length = GetWindowTextLength(write_field);
-			
+
 			if (data_length != 0 && data_length <= buffer_length * 2)
 			{
 				GetWindowText(write_field, data, data_length);
