@@ -7,19 +7,15 @@ import android.util.Log;
 import com.example.smartcard.statemachine.InitialState;
 import com.example.smartcard.statemachine.State;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import static com.example.smartcard.HexaValues.APDUOffset.CLA;
 import static com.example.smartcard.HexaValues.APDUOffset.INS;
-import static com.example.smartcard.HexaValues.APDUOffset.P1;
-import static com.example.smartcard.HexaValues.APDUOffset.P2;
 import static com.example.smartcard.HexaValues.ReturnCode.CLA_UNKNOWN;
 import static com.example.smartcard.HexaValues.ReturnCode.INS_UNKNOWN;
 import static com.example.smartcard.HexaValues.ReturnCode.NO_COMPLIANT_STATE;
 import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
-import static com.example.smartcard.HexaValues.ReturnCode.P1_2_INCORRECT_SELECT;
 
 public class cCardService extends HostApduService {
 
@@ -37,7 +33,9 @@ public class cCardService extends HostApduService {
         Log.d("Command received", print(commandApdu));
 
         if (commandApdu[CLA] != (byte) 0x00) {
+
             Log.d(TAG_APDU, "CLA Unknown");
+
             return CLA_UNKNOWN;
 
         }
@@ -45,6 +43,7 @@ public class cCardService extends HostApduService {
         if (Arrays.asList(authorizedINS).contains(commandApdu[INS])) {
 
             Log.d(TAG_APDU, "INS Unknown");
+
             return INS_UNKNOWN;
 
         }
@@ -52,6 +51,7 @@ public class cCardService extends HostApduService {
         if (commandApdu[INS] == (byte) 0xa4) {
 
             Log.d(TAG_APDU, "State Machine STATE");
+
             return currentState.execute(commandApdu);
 
         }
@@ -59,6 +59,7 @@ public class cCardService extends HostApduService {
         if (commandApdu[INS] == (byte) 0xB0) {
 
             Log.d(TAG_APDU, "State Machine STATE B0");
+
             return currentState.execute(commandApdu);
 
         }
@@ -66,10 +67,10 @@ public class cCardService extends HostApduService {
         if (commandApdu[INS] == (byte) 0xE0) {
 
             Log.d(TAG_APDU, "No compliant state");
+
             return NO_COMPLIANT_STATE;
 
         }
-
 
         return OK_CODE;
     }
@@ -81,11 +82,10 @@ public class cCardService extends HostApduService {
 
     @Override
     public void onCreate() {
+
         super.onCreate();
 
-
         currentState = new State(new InitialState());
-
 
 //        File file = new File(getBaseContext().getCacheDir(), "NDEFFile");
 //
@@ -100,20 +100,24 @@ public class cCardService extends HostApduService {
 //            e.printStackTrace();
 //        }
 
-
     }
-
 
     private String print(byte[] bytes) {
+
         StringBuilder sb = new StringBuilder();
         sb.append("[ ");
-        for (byte b : bytes) {
-            sb.append(String.format("0x%02X ", b));
-        }
-        sb.append("]");
-        return sb.toString();
-    }
 
+        for (byte b : bytes) {
+
+            sb.append(String.format("0x%02X ", b));
+
+        }
+
+        sb.append("]");
+
+        return sb.toString();
+
+    }
 
 //    private byte[] hexStringToByteArray(String s) {
 //        int len = s.length();

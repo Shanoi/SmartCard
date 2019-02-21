@@ -3,7 +3,9 @@
     package="com.example.smartcard">
 
     <uses-permission android:name="android.permission.NFC" />
-    <uses-feature android:name="android.hardware.nfc.hce" android:required="true" />
+    <uses-feature
+        android:name="android.hardware.nfc.hce"
+        android:required="true" />
 
     <application
         android:allowBackup="true"
@@ -16,9 +18,9 @@
         <!-- Service for handling communication with NFC -->
         <service
             android:name="com.example.smartcard.cCardService"
-            android:permission="android.permission.BIND_NFC_SERVICE"
+            android:enabled="true"
             android:exported="true"
-            android:enabled="true" >
+            android:permission="android.permission.BIND_NFC_SERVICE">
             <!-- Intent filter indicating that we support card emulation. -->
             <intent-filter>
                 <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
@@ -30,8 +32,7 @@
             -->
             <meta-data
                 android:name="android.nfc.cardemulation.host_apdu_service"
-                android:resource="@xml/aid_list" >
-            </meta-data>
+                android:resource="@xml/aid_list"></meta-data>
         </service>
 
         <activity android:name=".MainActivity">

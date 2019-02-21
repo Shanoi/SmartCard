@@ -47,9 +47,7 @@ public class State {
     }
 
     public byte[] execute(byte[] commandApdu) {
-
         return state.apply(this, commandApdu);
-
     }
-}
 
+}

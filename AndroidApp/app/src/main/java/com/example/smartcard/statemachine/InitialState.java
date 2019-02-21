@@ -14,12 +14,16 @@ public class InitialState implements ReadingState {
     public byte[] apply(State state, byte[] commandApdu) {
 
         if (commandApdu[2] == (byte) 0x04 && !state.isApplicationSelected()) {
+
             Log.d(TAG_APDU, "Set Select App state");
+
             state.setState(new SelectAppliState());
             return state.execute(commandApdu);
 
         } else if (commandApdu[P1] == (byte) 0x00 && commandApdu[P2] == (byte) 0x0c && state.isApplicationSelected()) {
+
             Log.d(TAG_APDU, "Set select file state");
+
             state.setState(new SelecteFileState());
             return state.execute(commandApdu);
 
@@ -27,5 +31,7 @@ public class InitialState implements ReadingState {
 
         Log.d(TAG_APDU, "P1 / P2 Incorrect for SELECT");
         return P1_2_INCORRECT_SELECT;
+
     }
+
 }

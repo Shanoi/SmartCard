@@ -15,12 +15,18 @@ public class ReadFileState implements ReadingState {
     public byte[] apply(State state, byte[] commandApdu) {
 
         if (state.isFileSelected()) {
+
             Log.d(TAG_APDU, "Set Initiale state");
+
             state.setState(new InitialState());
             return concateByteArray(ccFile(), OK_CODE);
+
         }
 
         Log.d(TAG_APDU, "No compliant state");
+
         return NO_COMPLIANT_STATE;
+
     }
+
 }
