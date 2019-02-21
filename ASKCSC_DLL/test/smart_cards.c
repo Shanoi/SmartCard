@@ -143,6 +143,7 @@
 // Standard C Library
 #include <stdlib.h>
 #include <stdarg.h>
+#include <tchar.h>
 
 // MS-DOS
 #include <conio.h>
@@ -359,7 +360,7 @@ static void display_records(Record* records, DWORD length, int level)
 				printf("%02X", records->payload[j]);
 			}
 
-			char* result = (char*)malloc(sizeof(char) * records->payload_length + 2);
+			char* result = (char*)malloc(sizeof(char) * records->payload_length + 3);
 			printf(" ");
 
 			for (unsigned int j = 0; j < records->payload_length; ++j)
@@ -368,9 +369,10 @@ static void display_records(Record* records, DWORD length, int level)
 				*result++ = (char)records->payload[j];
 			}
 
+			*result++ = '\r';
 			*result++ = '\n';
 			*result++ = '\0';
-			result -= records->payload_length + 2;
+			result -= records->payload_length + 3;
 			AppendText(log_field, result);
 			free(result);
 		}
@@ -585,7 +587,7 @@ void initialize(void)
 					io_data[4], io_data[5], MLe, io_data[6], io_data[7], MLc,
 					io_data[12], io_data[13], buffer_length,
 					NDEF_File[0], NDEF_File[1]);
-				AppendText(log_field, "Initialize done!\n");
+				AppendText(log_field, "Initialize done!\r\n");
 			}
 		}
 	}
@@ -1004,7 +1006,7 @@ static void read(void)
 			free_records(records, record_length);
 		}
 
-		AppendText(log_field, "Read result:\n");
+		AppendText(log_field, "Read result:\r\n");
 		records = parse_ndef_file(NDEF_data, &record_length);
 		display_records(records, record_length, 0);
 		free(NDEF_data);
@@ -1339,8 +1341,8 @@ static void AddTextFields(HWND hwnd)
 	);
 
 	log_field = CreateWindowW(
-		L"Edit", L"Log Text...",
-		WS_CHILD | WS_BORDER | WS_VSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VISIBLE,
+		L"Edit", L"Log Text...\r\n",
+		WS_CHILD | WS_BORDER | WS_VSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VISIBLE | ES_WANTRETURN,
 		(int)(WINDOW_WIDTH * 0.025), 120,
 		(int)(WINDOW_WIDTH * 0.925), (int)(WINDOW_HEIGHT * 0.675),
 		hwnd, (HMENU)TEXT_FIELD_LOG, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL
