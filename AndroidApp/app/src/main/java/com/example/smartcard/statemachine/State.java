@@ -10,6 +10,7 @@ import java.util.Map;
 
 import static com.example.smartcard.HexaValues.APDUOffset.P1;
 import static com.example.smartcard.HexaValues.APDUOffset.P2;
+import static com.example.smartcard.HexaValues.CCFile.NDEFFile;
 
 public class State {
 
@@ -77,8 +78,8 @@ public class State {
 
     public void readValidContentLength() {
 
-        int a = (int) (file[0] << 8);
-        int b = (int) (file[1]);
+        int a = (int) (NDEFFile[4] << 8);
+        int b = (int) (NDEFFile[5]);
 
         Log.d(TAG_APDU, "" + file[0]);
         Log.d(TAG_APDU, "" + file[1]);

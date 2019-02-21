@@ -37,7 +37,10 @@ public class ReadNDEFFileState implements ReadingState {
 
         }
 
-        int mle = (MLe[0] & 0xFF) << 8 + MLe[1] & 0xFF;
+        int a = (int) (MLe[0] << 8);
+        int b = (int) (MLe[1]);
+
+        int mle = a + b;
 
         if (length > mle) {
 
@@ -53,7 +56,6 @@ public class ReadNDEFFileState implements ReadingState {
             Log.d(TAG_APDU, "LOOP");
             content[i - offset] = file[i];
         }
-
 
 
         if (state.getValidContentLength() == offset + length) {
