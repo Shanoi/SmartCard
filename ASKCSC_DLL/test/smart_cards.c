@@ -143,6 +143,8 @@
 // Standard C Library
 #include <stdlib.h>
 #include <stdarg.h>
+
+// WinAPI
 #include <tchar.h>
 
 // MS-DOS
@@ -361,6 +363,13 @@ static void display_records(Record* records, DWORD length, int level)
 			}
 
 			char* result = (char*)malloc(sizeof(char) * records->payload_length + 3);
+
+			if (!result)
+			{
+				printf("\n\t%sCouldn't allocate gui application display string.", indent);
+				continue;
+			}
+
 			printf(" ");
 
 			for (unsigned int j = 0; j < records->payload_length; ++j)
@@ -1006,9 +1015,10 @@ static void read(void)
 			free_records(records, record_length);
 		}
 
-		AppendText(log_field, "Read result:\r\n");
+		AppendText(log_field, "----------------------------------------\r\nRead result:\r\n");
 		records = parse_ndef_file(NDEF_data, &record_length);
 		display_records(records, record_length, 0);
+		AppendText(log_field, "----------------------------------------\r\n");
 		free(NDEF_data);
 	}
 }
@@ -1049,6 +1059,10 @@ static void write(byte* data, unsigned int data_length)
 			0x00, 0xD6, (byte)(offset >> 8), (byte)offset, data_length - offset, data))
 		{
 			return;
+		}
+		else
+		{
+			AppendText(log_field, "Write done\r\n");
 		}
 	}
 }
