@@ -36,6 +36,18 @@ static FILE *trace;
 // Track the step number of a single program run
 static int step = 1;
 
+// APDU Command Code Error
+static byte CLA_UNKNOWN[] = { 0x6E, 0x00 };
+static byte INS_UNKNOWN[] = { 0x6D, 0x00 };
+static byte LC_INCORRECT[] = { 0x67, 0x00 };
+static byte LE_INCORRECT[] = { 0x6C, 0x00 };
+static byte AID_LID_UNKNOWN[] = { 0x6A, 0x82 };
+static byte NO_COMPLIANT_STATE[] = { 0x69, 0x86 };
+static byte P1_2_INCORRECT_SELECT[] = { 0x6A, 0x86 };
+static byte P1_2_INCORRECT_READUPDATE[] = { 0x6B, 0x00 };
+static byte OFFSET_LC_INCORRECT[] = { 0x6A, 0x87 };
+static byte OFFSET_LE_INCORRECT[] = { 0x6C, 0x00 };
+
 enum TNF {
 	Empty, NFC_Forum_Type, Media_Type, Absolute_URI,
 	NFC_Forum_External_Type, TNF_Unknown, Unchanged, Reserved
@@ -159,6 +171,7 @@ static unsigned int len(byte* str);
 static void copy_string(char* source, char* destination, unsigned int length, unsigned int source_offset);
 static void flush();
 static void free_records(Record* records, int length);
+static void clean();
 
 // GUI Functions
 static void AppendText(HWND hwnd, char *new_text);

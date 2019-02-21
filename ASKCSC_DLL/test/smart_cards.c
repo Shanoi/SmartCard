@@ -534,6 +534,20 @@ static void free_records(Record* records, int length)
 	free(records);
 }
 
+/*
+ * Cleans everything (free and communication stopping).
+ */
+static void clean()
+{
+	if (records)
+	{
+		free_records(records, record_length);
+	}
+
+	CSC_AntennaOFF();
+	CSC_Close();
+}
+
 /****************************************************************/
 
 /******************** AskCSC / NFC Funcions *********************/
@@ -990,6 +1004,12 @@ static void read(void)
 			{
 				return;
 			}
+			else if (io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
+			{
+				printf("\tRead failed! (Incorrect LE)\n");
+				AppendText(log_field, "Read failed!\r\n");
+				return;
+			}
 
 			copy_string(io_data, NDEF_data, MLe, 1);
 			NDEF_data += MLe;
@@ -1001,6 +1021,12 @@ static void read(void)
 		if (!nfc_forum_type_4_command_varargs(READ_BINARY, "NDEF", &result, &length, io_data, 5,
 			0x00, 0xB0, (byte)(offset >> 8), (byte)offset, buffer_length - offset))
 		{
+			return;
+		}
+		else if (io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
+		{
+			printf("\tRead failed! (Incorrect LE)\n");
+			AppendText(log_field, "Read failed!\r\n");
 			return;
 		}
 
@@ -1049,6 +1075,18 @@ static void write(byte* data, unsigned int data_length)
 			{
 				return;
 			}
+			else if (io_data[1] == LC_INCORRECT[0] && io_data[2] == LC_INCORRECT[1])
+			{
+				printf("\tWrite failed! (Incorrect LC)\n");
+				AppendText(log_field, "Write failed!\r\n");
+				return;
+			}
+			else if (io_data[1] == OFFSET_LC_INCORRECT[0] && io_data[2] == OFFSET_LC_INCORRECT[1])
+			{
+				printf("\tWrite failed! (Incorrect LC Offset)\n");
+				AppendText(log_field, "Write failed!\r\n");
+				return;
+			}
 
 			data += MLc;
 		}
@@ -1060,9 +1098,21 @@ static void write(byte* data, unsigned int data_length)
 		{
 			return;
 		}
+		else if (io_data[1] == LC_INCORRECT[0] && io_data[2] == LC_INCORRECT[1])
+		{
+			printf("\tWrite failed! (Incorrect LC)\n");
+			AppendText(log_field, "Write failed!\r\n");
+			return;
+		}
+		else if (io_data[1] == OFFSET_LC_INCORRECT[0] && io_data[2] == OFFSET_LC_INCORRECT[1])
+		{
+			printf("\tWrite failed! (Incorrect LC Offset)\n");
+			AppendText(log_field, "Write failed!\r\n");
+			return;
+		}
 		else
 		{
-			AppendText(log_field, "Write done\r\n");
+			AppendText(log_field, "Write done!\r\n");
 		}
 	}
 }
@@ -1171,8 +1221,7 @@ int main(void)
 		}
 	}
 
-	CSC_AntennaOFF();
-	CSC_Close();
+	clean();
 	fclose(trace);
 	printf("Press a Key.\n");
 	_getch();
@@ -1241,6 +1290,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
 		DispatchMessage(&msg);
 	}
 
+	clean();
 	return (int)msg.wParam;
 }
 
