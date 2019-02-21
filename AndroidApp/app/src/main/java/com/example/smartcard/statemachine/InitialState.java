@@ -13,7 +13,7 @@ public class InitialState implements ReadingState {
     @Override
     public byte[] apply(State state, byte[] commandApdu) {
 
-        if (commandApdu[2] == (byte) 0x04 && !state.isApplicationSelected()) {
+        if (commandApdu[P1] == (byte) 0x04 && !state.isApplicationSelected()) {
 
             Log.d(TAG_APDU, "Set Select App state");
 

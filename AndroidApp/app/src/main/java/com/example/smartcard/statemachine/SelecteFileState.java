@@ -3,6 +3,7 @@ package com.example.smartcard.statemachine;
 import android.util.Log;
 
 import static com.example.smartcard.HexaValues.APDUOffset.P1;
+import static com.example.smartcard.HexaValues.ReturnCode.AID_LID_UNKNOWN;
 import static com.example.smartcard.HexaValues.ReturnCode.NO_COMPLIANT_STATE;
 import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
 
@@ -22,6 +23,7 @@ public class SelecteFileState implements ReadingState {
 
         }
 
+
         if (commandApdu[5] == (byte) 0xE1 && commandApdu[6] == (byte) 0x03) {
 
             Log.d(TAG_APDU, "Set read file state");
@@ -29,12 +31,23 @@ public class SelecteFileState implements ReadingState {
             state.setFileSelected(true);
             state.setCurrentFile(new byte[]{(byte) 0xE1, (byte) 0x03});
             state.setState(new ReadFileState());
-            //return concateByteArray(OK_CODE, ccFile());
 
+            Log.d(TAG_APDU, "OK CODE");
+            return OK_CODE;
+
+        } else if (commandApdu[5] == (byte) 0x81 && commandApdu[6] == (byte) 0x01) {
+
+            state.setFileSelected(true);
+            state.setCurrentFile(new byte[]{(byte) 0x81, (byte) 0x01});
+            state.setState(new ReadFileState());
+
+            Log.d(TAG_APDU, "OK CODE");
+            return OK_CODE;
+
+        } else {
+
+            return AID_LID_UNKNOWN;
         }
-
-        Log.d(TAG_APDU, "OK CODE");
-        return OK_CODE;
 
     }
 

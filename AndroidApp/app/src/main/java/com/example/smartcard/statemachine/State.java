@@ -1,5 +1,16 @@
 package com.example.smartcard.statemachine;
 
+import android.util.Log;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Map;
+
+import static com.example.smartcard.HexaValues.APDUOffset.P1;
+import static com.example.smartcard.HexaValues.APDUOffset.P2;
+
 public class State {
 
     private ReadingState state;
@@ -9,9 +20,15 @@ public class State {
     private byte[] currentFile;
     private boolean fileSelected;
 
+    private byte[] file;
+    private int validContentLength;
+
+    private static final String TAG_APDU = "STATE";
+
     public State(ReadingState state) {
         this.state = state;
         applicationSelected = false;
+        this.validContentLength = 0;
     }
 
     public ReadingState getState() {
@@ -44,6 +61,32 @@ public class State {
 
     public boolean isFileSelected() {
         return fileSelected;
+    }
+
+    public byte[] getFile() {
+        return file;
+    }
+
+    public void setFile(byte[] file) {
+        this.file = file;
+    }
+
+    public int getValidContentLength() {
+        return validContentLength;
+    }
+
+    public void readValidContentLength() {
+
+        int a = (int) (file[0] << 8);
+        int b = (int) (file[1]);
+
+        Log.d(TAG_APDU, "" + file[0]);
+        Log.d(TAG_APDU, "" + file[1]);
+        Log.d(TAG_APDU, "" + a);
+        Log.d(TAG_APDU, "" + b);
+
+        validContentLength = a + b;
+
     }
 
     public byte[] execute(byte[] commandApdu) {
