@@ -382,7 +382,11 @@ static void display_records(Record* records, DWORD length, int level)
 			*result++ = '\n';
 			*result++ = '\0';
 			result -= records->payload_length + 3;
+
+#ifdef _SMART_CARDS_GUI_
 			AppendText(log_field, result);
+#endif
+
 			free(result);
 		}
 
@@ -610,7 +614,11 @@ void initialize(void)
 					io_data[4], io_data[5], MLe, io_data[6], io_data[7], MLc,
 					io_data[12], io_data[13], buffer_length,
 					NDEF_File[0], NDEF_File[1]);
+
+#ifdef _SMART_CARDS_GUI_
 				AppendText(log_field, "Initialize done!\r\n");
+#endif
+
 			}
 		}
 	}
@@ -992,7 +1000,11 @@ static void read(void)
 		else if (io_data[0] == 0x03 && io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
 		{
 			printf("\tRead failed! (Incorrect LE)\n");
+
+#ifdef _SMART_CARDS_GUI_
 			AppendText(log_field, "Read failed!\r\n");
+#endif
+
 			return;
 		}
 
@@ -1022,7 +1034,11 @@ static void read(void)
 			else if (io_data[0] == 0x03 && io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
 			{
 				printf("\tRead failed! (Incorrect LE)\n");
+
+#ifdef _SMART_CARDS_GUI_
 				AppendText(log_field, "Read failed!\r\n");
+#endif
+
 				return;
 			}
 
@@ -1041,7 +1057,11 @@ static void read(void)
 		else if (io_data[0] == 0x03 && io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
 		{
 			printf("\tRead failed! (Incorrect LE)\n");
+
+#ifdef _SMART_CARDS_GUI_
 			AppendText(log_field, "Read failed!\r\n");
+#endif
+
 			return;
 		}
 
@@ -1056,10 +1076,17 @@ static void read(void)
 			free_records(records, record_length);
 		}
 
+#ifdef _SMART_CARDS_GUI_
 		AppendText(log_field, "----------------------------------------\r\nRead result:\r\n");
+#endif
+
 		records = parse_ndef_file(NDEF_data, &record_length);
 		display_records(records, record_length, 0);
+
+#ifdef _SMART_CARDS_GUI_
 		AppendText(log_field, "----------------------------------------\r\n");
+#endif
+
 		free(NDEF_data);
 	}
 }
@@ -1096,7 +1123,11 @@ static void dumb_read(void)
 			else if (io_data[0] == 0x03 && io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
 			{
 				printf("\tRead failed! (Incorrect LE)\n");
+
+#ifdef _SMART_CARDS_GUI_
 				AppendText(log_field, "Read failed!\r\n");
+#endif
+
 				return;
 			}
 
@@ -1115,7 +1146,11 @@ static void dumb_read(void)
 		else if (io_data[0] == 0x03 && io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
 		{
 			printf("\tRead failed! (Incorrect LE)\n");
+
+#ifdef _SMART_CARDS_GUI_
 			AppendText(log_field, "Read failed!\r\n");
+#endif
+
 			return;
 		}
 
@@ -1130,10 +1165,17 @@ static void dumb_read(void)
 			free_records(records, record_length);
 		}
 
+#ifdef _SMART_CARDS_GUI_
 		AppendText(log_field, "----------------------------------------\r\nRead result:\r\n");
+#endif
+
 		records = parse_ndef_file(NDEF_data, &record_length);
 		display_records(records, record_length, 0);
+		
+#ifdef _SMART_CARDS_GUI_
 		AppendText(log_field, "----------------------------------------\r\n");
+#endif
+
 		free(NDEF_data);
 	}
 }
@@ -1150,6 +1192,7 @@ static void write(byte* data, unsigned int data_length)
 		// 0x6C, 0x6C, 0x65, 0x20, 0x68, 0x69, 0x73, 0x74, 0x6f, 0x69, 0x72, 0x65
 		// Write Data 0x50, 0x4f, 0x4c, 0x59, 0x54, 0x45, 0x43, 0x48
 		// 003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348
+		// 006291010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C595445434891010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348
 
 		const char* info = "NDEF";
 		int write_cycles = data_length / MLc;
@@ -1159,7 +1202,7 @@ static void write(byte* data, unsigned int data_length)
 		{
 			offset = MLc * i;
 
-			if (!nfc_forum_type_4_update_binary(info, &result, &length, io_data, MLc,
+			if (!nfc_forum_type_4_update_binary(info, &result, &length, io_data, MLc + 5,
 				0x00, 0xD6, (byte)(offset >> 8), (byte)offset, MLc, data))
 			{
 				return;
@@ -1167,13 +1210,21 @@ static void write(byte* data, unsigned int data_length)
 			else if (io_data[0] == 0x03 && io_data[1] == LC_INCORRECT[0] && io_data[2] == LC_INCORRECT[1])
 			{
 				printf("\tWrite failed! (Incorrect LC)\n");
+
+#ifdef _SMART_CARDS_GUI_
 				AppendText(log_field, "Write failed!\r\n");
+#endif
+
 				return;
 			}
 			else if (io_data[0] == 0x03 && io_data[1] == OFFSET_LC_INCORRECT[0] && io_data[2] == OFFSET_LC_INCORRECT[1])
 			{
 				printf("\tWrite failed! (Incorrect LC Offset)\n");
+
+#ifdef _SMART_CARDS_GUI_
 				AppendText(log_field, "Write failed!\r\n");
+#endif
+
 				return;
 			}
 
@@ -1190,18 +1241,28 @@ static void write(byte* data, unsigned int data_length)
 		else if (io_data[0] == 0x03 && io_data[1] == LC_INCORRECT[0] && io_data[2] == LC_INCORRECT[1])
 		{
 			printf("\tWrite failed! (Incorrect LC)\n");
+
+#ifdef _SMART_CARDS_GUI_
 			AppendText(log_field, "Write failed!\r\n");
+#endif
+
 			return;
 		}
 		else if (io_data[0] == 0x03 && io_data[1] == OFFSET_LC_INCORRECT[0] && io_data[2] == OFFSET_LC_INCORRECT[1])
 		{
 			printf("\tWrite failed! (Incorrect LC Offset)\n");
+
+#ifdef _SMART_CARDS_GUI_
 			AppendText(log_field, "Write failed!\r\n");
+#endif
+
 			return;
 		}
 		else
 		{
+#ifdef _SMART_CARDS_GUI_
 			AppendText(log_field, "Write done!\r\n");
+#endif
 		}
 	}
 }
@@ -1419,23 +1480,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 			read();
 			break;
 		case BTN_ID_WRITE:
-			data = (char*)malloc(sizeof(char) * buffer_length * 2);
+			data = (char*)malloc(sizeof(char) * (buffer_length * 2 + 1));
 			data_length = GetWindowTextLength(write_field);
 
 			if (data_length != 0 && data_length <= buffer_length * 2)
 			{
-				GetWindowText(write_field, data, data_length);
-
+				GetWindowText(write_field, data, data_length + 1);
+				printf("!!!!!!!!!!!!!!!!!!!!!!!! -----> %s", data);
 				if (data = str_to_hex(data))
 				{
+					display_data_string_to_hex(data, data_length / 2);
 					write(data, data_length / 2);
 				}
-				
+
 				free(data);
 			}
 			else
 			{
-				data_length ? MessageBox(hwnd, "Data length is bigger than the NDEF Max File Size.", "Error", 0) : 
+				data_length ? MessageBox(hwnd, "Data length is bigger than the NDEF Max File Size.", "Error", 0) :
 					MessageBox(hwnd, "No data to write.", "Error", 0);
 			}
 			break;
@@ -1508,7 +1570,7 @@ static void AppendText(HWND hwnd, char *new_text)
 {
 	int content_length = GetWindowTextLength(hwnd) + lstrlen(new_text) + 1;
 	char* buffer = (char*)GlobalAlloc(GPTR, sizeof(char) * content_length);
-	
+
 	if (!buffer)
 	{
 		return;
