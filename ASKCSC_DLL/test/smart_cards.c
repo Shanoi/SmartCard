@@ -998,7 +998,7 @@ static void read(void)
 
 		int valid_content = (io_data[1] << 8) + io_data[2];
 		int read_cycles = valid_content / MLe;
-		int offset = 0;
+		int offset = 2;
 		byte* NDEF_data = (byte*)malloc(sizeof(byte) * valid_content);
 
 		if (!NDEF_data)
