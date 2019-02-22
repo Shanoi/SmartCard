@@ -999,7 +999,7 @@ static void read(void)
 		int valid_content = (io_data[1] << 8) + io_data[2];
 		int read_cycles = valid_content / MLe;
 		int offset = 0;
-		byte* NDEF_data = (byte*)malloc(sizeof(byte) * valid_content);
+		byte* NDEF_data = (byte*)malloc(sizeof(byte) * (valid_content + 2));
 
 		if (!NDEF_data)
 		{
@@ -1011,7 +1011,7 @@ static void read(void)
 
 		for (int i = 0; i < read_cycles; i++)
 		{
-			offset = MLe * i + 2;
+			offset = MLe * i;
 
 			// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
 			if (!nfc_forum_type_4_command_varargs(READ_BINARY, "NDEF", &result, &length, io_data, 5,
@@ -1030,11 +1030,11 @@ static void read(void)
 			NDEF_data += MLe;
 		}
 
-		offset = MLe * read_cycles + 2;
+		offset = MLe * read_cycles;
 
 		// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
 		if (!nfc_forum_type_4_command_varargs(READ_BINARY, "NDEF", &result, &length, io_data, 5,
-			0x00, 0xB0, (byte)(offset >> 8), (byte)offset, valid_content - offset))
+			0x00, 0xB0, (byte)(offset >> 8), (byte)offset, valid_content - offset + 2))
 		{
 			return;
 		}
@@ -1045,11 +1045,11 @@ static void read(void)
 			return;
 		}
 
-		copy_string(io_data, NDEF_data, valid_content - offset, 1);
+		copy_string(io_data, NDEF_data, valid_content - offset + 2, 1);
 		NDEF_data -= offset;
 
 		printf("NDEF Data:\n");
-		display_data_string_to_hex(NDEF_data, valid_content);
+		display_data_string_to_hex(NDEF_data, valid_content + 2);
 
 		if (records)
 		{
