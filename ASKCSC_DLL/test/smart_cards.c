@@ -982,6 +982,95 @@ static void read(void)
 	if (nfc_forum_type_4_command_varargs(SELECT, "NDEF", &result, &length, io_data, 7,
 		0x00, 0xA4, 0x00, 0x0C, 0x02, NDEF_File[0], NDEF_File[1]))
 	{
+		// Read valid content length
+		// Length:5; CLA:00 INS:B0 P1/P2:0000 Lc:- Data:- Le:02
+		if (!nfc_forum_type_4_command_varargs(READ_BINARY, "NDEF Valid Content Length", &result, &length, io_data, 5,
+			0x00, 0xB0, 0x00, 0x00, 0x02))
+		{
+			return;
+		}
+		else if (io_data[0] == 0x03 && io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
+		{
+			printf("\tRead failed! (Incorrect LE)\n");
+			AppendText(log_field, "Read failed!\r\n");
+			return;
+		}
+
+		int valid_content = (io_data[1] << 8) + io_data[2];
+		int read_cycles = valid_content / MLe;
+		int offset = 0;
+		byte* NDEF_data = (byte*)malloc(sizeof(byte) * valid_content);
+
+		if (!NDEF_data)
+		{
+			CSC_AntennaOFF();
+			CSC_Close();
+			printf("Memory allocation failed!\n");
+			return;
+		}
+
+		for (int i = 0; i < read_cycles; i++)
+		{
+			offset = MLe * i;
+
+			// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
+			if (!nfc_forum_type_4_command_varargs(READ_BINARY, "NDEF", &result, &length, io_data, 5,
+				0x00, 0xB0, (byte)(offset >> 8), (byte)offset, MLe))
+			{
+				return;
+			}
+			else if (io_data[0] == 0x03 && io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
+			{
+				printf("\tRead failed! (Incorrect LE)\n");
+				AppendText(log_field, "Read failed!\r\n");
+				return;
+			}
+
+			copy_string(io_data, NDEF_data, MLe, 1);
+			NDEF_data += MLe;
+		}
+
+		offset = MLe * read_cycles;
+
+		// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
+		if (!nfc_forum_type_4_command_varargs(READ_BINARY, "NDEF", &result, &length, io_data, 5,
+			0x00, 0xB0, (byte)(offset >> 8), (byte)offset, valid_content - offset))
+		{
+			return;
+		}
+		else if (io_data[0] == 0x03 && io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
+		{
+			printf("\tRead failed! (Incorrect LE)\n");
+			AppendText(log_field, "Read failed!\r\n");
+			return;
+		}
+
+		copy_string(io_data, NDEF_data, valid_content - offset, 1);
+		NDEF_data -= offset;
+
+		printf("NDEF Data:\n");
+		display_data_string_to_hex(NDEF_data, valid_content);
+
+		if (records)
+		{
+			free_records(records, record_length);
+		}
+
+		AppendText(log_field, "----------------------------------------\r\nRead result:\r\n");
+		records = parse_ndef_file(NDEF_data, &record_length);
+		display_records(records, record_length, 0);
+		AppendText(log_field, "----------------------------------------\r\n");
+		free(NDEF_data);
+	}
+}
+
+static void dumb_read(void)
+{
+	// Select & Read NDEF File
+	// Length:7; CLA:00 INS:A4 P1:00 P2:0C Lc:02 Data:E104 Le:-
+	if (nfc_forum_type_4_command_varargs(SELECT, "NDEF", &result, &length, io_data, 7,
+		0x00, 0xA4, 0x00, 0x0C, 0x02, NDEF_File[0], NDEF_File[1]))
+	{
 		int read_cycles = buffer_length / MLe;
 		int offset = 0;
 		byte* NDEF_data = (byte*)malloc(sizeof(byte) * buffer_length);
@@ -1004,7 +1093,7 @@ static void read(void)
 			{
 				return;
 			}
-			else if (io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
+			else if (io_data[0] == 0x03 && io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
 			{
 				printf("\tRead failed! (Incorrect LE)\n");
 				AppendText(log_field, "Read failed!\r\n");
@@ -1023,7 +1112,7 @@ static void read(void)
 		{
 			return;
 		}
-		else if (io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
+		else if (io_data[0] == 0x03 && io_data[1] == LE_INCORRECT[0] && io_data[2] == LE_INCORRECT[1])
 		{
 			printf("\tRead failed! (Incorrect LE)\n");
 			AppendText(log_field, "Read failed!\r\n");
@@ -1075,13 +1164,13 @@ static void write(byte* data, unsigned int data_length)
 			{
 				return;
 			}
-			else if (io_data[1] == LC_INCORRECT[0] && io_data[2] == LC_INCORRECT[1])
+			else if (io_data[0] == 0x03 && io_data[1] == LC_INCORRECT[0] && io_data[2] == LC_INCORRECT[1])
 			{
 				printf("\tWrite failed! (Incorrect LC)\n");
 				AppendText(log_field, "Write failed!\r\n");
 				return;
 			}
-			else if (io_data[1] == OFFSET_LC_INCORRECT[0] && io_data[2] == OFFSET_LC_INCORRECT[1])
+			else if (io_data[0] == 0x03 && io_data[1] == OFFSET_LC_INCORRECT[0] && io_data[2] == OFFSET_LC_INCORRECT[1])
 			{
 				printf("\tWrite failed! (Incorrect LC Offset)\n");
 				AppendText(log_field, "Write failed!\r\n");
@@ -1098,13 +1187,13 @@ static void write(byte* data, unsigned int data_length)
 		{
 			return;
 		}
-		else if (io_data[1] == LC_INCORRECT[0] && io_data[2] == LC_INCORRECT[1])
+		else if (io_data[0] == 0x03 && io_data[1] == LC_INCORRECT[0] && io_data[2] == LC_INCORRECT[1])
 		{
 			printf("\tWrite failed! (Incorrect LC)\n");
 			AppendText(log_field, "Write failed!\r\n");
 			return;
 		}
-		else if (io_data[1] == OFFSET_LC_INCORRECT[0] && io_data[2] == OFFSET_LC_INCORRECT[1])
+		else if (io_data[0] == 0x03 && io_data[1] == OFFSET_LC_INCORRECT[0] && io_data[2] == OFFSET_LC_INCORRECT[1])
 		{
 			printf("\tWrite failed! (Incorrect LC Offset)\n");
 			AppendText(log_field, "Write failed!\r\n");
@@ -1275,6 +1364,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
 
 	AllocConsole();
 	freopen("CON", "w", stdout);
+	fopen_s(&trace, "trace.txt", "w+");
 
 	CreateWindowW(
 		wc.lpszClassName, L"Smart Cards",
@@ -1291,6 +1381,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
 	}
 
 	clean();
+	fclose(trace);
 	return (int)msg.wParam;
 }
 

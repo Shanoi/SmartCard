@@ -144,6 +144,7 @@ static Record* parse_ndef_file(byte* data, int* total_records);
 static Record* parse_smart_poster(byte* data, int data_length, char* total_records);
 static Record parse_record(byte* data, int* byte_index, int NLEN);
 static void read(void);
+static void dumb_read(void);
 static void write(byte* data, unsigned int data_length);
 
 /****************************************************************/
