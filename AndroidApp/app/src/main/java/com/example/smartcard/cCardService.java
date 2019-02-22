@@ -25,7 +25,7 @@ import static com.example.smartcard.Utility.print;
 
 public class cCardService extends HostApduService {
 
-    private byte[] authorizedINS = new byte[]{(byte) 0xa4, (byte) 0xB0, (byte) 0xd6};
+    private byte[] authorizedINS = new byte[]{(byte) 0xA4, (byte) 0xB0, (byte) 0xD6};
 
     private static final String TAG_APDU = "Command APDU";
 
@@ -54,7 +54,7 @@ public class cCardService extends HostApduService {
 
         if (commandApdu[INS] == (byte) 0xA4) {
 
-            Log.d(TAG_APDU, "State Machine STATE");
+            Log.d(TAG_APDU, "State Machine STATE A4");
 
             return currentState.execute(commandApdu);
 
@@ -63,6 +63,14 @@ public class cCardService extends HostApduService {
         if (commandApdu[INS] == (byte) 0xB0) {
 
             Log.d(TAG_APDU, "State Machine STATE B0");
+
+            return currentState.execute(commandApdu);
+
+        }
+
+        if (commandApdu[INS] == (byte) 0xD6) {
+
+            Log.d(TAG_APDU, "State Machine STATE D6");
 
             return currentState.execute(commandApdu);
 

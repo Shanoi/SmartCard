@@ -53,8 +53,9 @@ public class ReadNDEFFileState implements ReadingState {
         byte[] file = state.getFile();
 
         for (int i = offset; i < length; i++) {
-            Log.d(TAG_APDU, "LOOP");
+
             content[i - offset] = file[i];
+
         }
 
 

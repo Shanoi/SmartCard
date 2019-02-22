@@ -7,7 +7,7 @@ import static com.example.smartcard.HexaValues.ReturnCode.AID_LID_UNKNOWN;
 import static com.example.smartcard.HexaValues.ReturnCode.NO_COMPLIANT_STATE;
 import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
 
-public class SelecteFileState implements ReadingState {
+public class SelectFileState implements ReadingState {
 
     private static final String TAG_APDU = "Select File State APDU";
 
