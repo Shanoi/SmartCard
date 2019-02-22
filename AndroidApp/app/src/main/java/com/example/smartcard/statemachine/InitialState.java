@@ -20,11 +20,11 @@ public class InitialState implements ReadingState {
             state.setState(new SelectAppliState());
             return state.execute(commandApdu);
 
-        } else if (commandApdu[P1] == (byte) 0x00 && commandApdu[P2] == (byte) 0x0c && state.isApplicationSelected()) {
+        } else if (commandApdu[P1] == (byte) 0x00 && commandApdu[P2] == (byte) 0x0C && state.isApplicationSelected()) {
 
             Log.d(TAG_APDU, "Set select file state");
 
-            state.setState(new SelecteFileState());
+            state.setState(new SelectFileState());
             return state.execute(commandApdu);
 
         }
