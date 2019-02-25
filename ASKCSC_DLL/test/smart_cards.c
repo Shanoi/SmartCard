@@ -362,7 +362,8 @@ static void display_records(Record* records, DWORD length, int level)
 				printf("%02X", records->payload[j]);
 			}
 
-			char* result = (char*)malloc(sizeof(char) * records->payload_length + 3);
+			unsigned int offset = 3;
+			char* result = (char*)malloc(sizeof(char) * (records->payload_length + offset));
 
 			if (!result)
 			{
@@ -376,20 +377,21 @@ static void display_records(Record* records, DWORD length, int level)
 			{
 				printf("%c", records->payload[j]);
 
-				if (records->type == 0x55 && j == 0)
+				if (records->type && records->type[0] == 0x55 && j == 0)
 				{
-					display_uri_prefix(records->payload[j]);
+					display_uri_prefix(uri_prefix[records->payload[j]]);
 				}
 				else
 				{
 					*result++ = (char)records->payload[j];
+					offset++;
 				}
 			}
 
 			*result++ = '\r';
 			*result++ = '\n';
 			*result++ = '\0';
-			result -= records->payload_length + 3;
+			result -= offset;
 
 #ifdef _SMART_CARDS_GUI_
 			AppendText(log_field, result);
@@ -411,9 +413,13 @@ static void display_records(Record* records, DWORD length, int level)
 	free(indent);
 }
 
-static void display_uri_prefix(byte prefix)
+static void display_uri_prefix(char* prefix)
 {
+	printf("%s", prefix);
 
+#ifdef _SMART_CARDS_GUI_
+	AppendText(log_field, prefix);
+#endif
 }
 
 /****************************************************************/
@@ -849,6 +855,7 @@ static Record* parse_ndef_file(byte* data, int* total_records)
 	Record* records = (Record*)malloc(mem_size);
 	*total_records = 0;
 
+	char status = 0;
 	int byte_index = 0;
 	int NLEN = (int)(data[0] << 8) + (int)(data[1]);
 	data += 2;
@@ -856,11 +863,50 @@ static Record* parse_ndef_file(byte* data, int* total_records)
 	while (byte_index < NLEN)
 	{
 		*records = parse_record(data, &byte_index, NLEN);
+
+		if (records->mb)
+		{
+			if (!status)
+			{
+				status = 1;
+			}
+			else
+			{
+				status = -1;
+				break;
+			}
+		}
+
+		if (records->me)
+		{
+			if (!status || byte_index < NLEN)
+			{
+				status = -2;
+			}
+
+			break;
+		}
+
 		mem_size += sizeof(*records);
 		records -= *total_records;
 		records = (Record*)realloc(records, mem_size);
 		(*total_records)++;
 		records += *total_records;
+	}
+
+	if (!status)
+	{
+		printf("NDEF Data corrupted! Couldn't parse all the data.\n");
+
+		switch (status)
+		{
+		case -1:
+			printf("Message Begin (MB) flag encountered twice.\n");
+			break;
+		case -2:
+			printf("Message End (ME) flag encountered either before Message Begin (MB) flag or before reading all data.\n");
+			break;
+		}
 	}
 
 	records -= *total_records;
@@ -874,15 +920,55 @@ static Record* parse_smart_poster(byte* data, int data_length, char* total_recor
 	*total_records = 0;
 
 	int byte_index = 0;
+	char status = 0;
 
 	while (byte_index < data_length)
 	{
 		*records = parse_record(data, &byte_index, data_length);
+
+		if (records->mb)
+		{
+			if (!status)
+			{
+				status = 1;
+			}
+			else
+			{
+				status = -1;
+				break;
+			}
+		}
+
+		if (records->me)
+		{
+			if (!status || byte_index < data_length)
+			{
+				status = -2;
+			}
+
+			break;
+		}
+
 		mem_size += sizeof(*records);
 		records -= *total_records;
 		records = (Record*)realloc(records, mem_size);
 		(*total_records)++;
 		records += *total_records;
+	}
+
+	if (!status)
+	{
+		printf("NDEF Data corrupted! Couldn't parse all the data.\n");
+
+		switch (status)
+		{
+		case -1:
+			printf("Message Begin (MB) flag encountered twice.\n");
+			break;
+		case -2:
+			printf("Message End (ME) flag encountered either before Message Begin (MB) flag or before reading all data.\n");
+			break;
+		}
 	}
 
 	records -= *total_records;
@@ -1207,7 +1293,8 @@ static void write(byte* data, unsigned int data_length)
 		// Write Text (?) 0x02, 0x66, 0x72, (?) 0x4C, 0x61, 0x20, 0x62, 0x65,
 		// 0x6C, 0x6C, 0x65, 0x20, 0x68, 0x69, 0x73, 0x74, 0x6f, 0x69, 0x72, 0x65
 		// Write Data 0x50, 0x4f, 0x4c, 0x59, 0x54, 0x45, 0x43, 0x48
-		// 003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348
+		// 003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348 // Corrupted data
+		// 003191010A55016170706C652E636F6D110114540266724C612062656C6C6520686973746f697265510008504F4C5954454348 // Correct data
 		// 006291010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C595445434891010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348
 
 		const char* info = "NDEF";

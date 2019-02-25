@@ -53,6 +53,12 @@ enum TNF {
 	NFC_Forum_External_Type, TNF_Unknown, Unchanged, Reserved
 };
 
+char* uri_prefix[] = { "http://www.", "https://www.", "http://", "https://", "tel:", "mailto:", 
+"ftp://anonymous:anonymous@", "ftp://ftp.", "ftps://", "sftp://", "smb://", "nfs://", "ftp://", 
+"dav://", "news:", "telnet://", "imap:", "rtsp://", "urn:", "pop:", "sip:", "sips:", "tftp:", 
+"btspp://", "btl2cap://", "btgoep://", "tcpobex://", "irdaobex://", "file://", "urn:epc:id:", 
+"urn:epc:tag:", "urn:epc:pat:", "urn:epc:raw:", "urn:epc:", "urn:nfc:" };
+
 /*
  * mb            : 1-bit Message Begin, useful when interpreted considering the ME flag's value.
  * me            : 1-bit Message End, useful in case of chunked payloads.
@@ -156,7 +162,7 @@ static void display_TNF(char tnf);
 static void display_data_string_to_hex(byte* data, DWORD length);
 static void display_data_hex_to_string(byte* data, DWORD length);
 static void display_records(Record* records, DWORD length, int level);
-static void display_uri_prefix(byte prefix);
+static void display_uri_prefix(char* prefix);
 
 /****************************************************************/
 
