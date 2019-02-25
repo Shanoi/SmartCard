@@ -156,6 +156,7 @@ static void display_TNF(char tnf);
 static void display_data_string_to_hex(byte* data, DWORD length);
 static void display_data_hex_to_string(byte* data, DWORD length);
 static void display_records(Record* records, DWORD length, int level);
+static void display_uri_prefix(byte prefix);
 
 /****************************************************************/
 

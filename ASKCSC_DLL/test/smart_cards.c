@@ -353,7 +353,7 @@ static void display_records(Record* records, DWORD length, int level)
 			}
 		}
 
-		if (records->payload_length)
+		if (records->payload_length && !records->sp)
 		{
 			printf("\n\t%s- Payload: 0x", indent);
 
@@ -375,7 +375,15 @@ static void display_records(Record* records, DWORD length, int level)
 			for (unsigned int j = 0; j < records->payload_length; ++j)
 			{
 				printf("%c", records->payload[j]);
-				*result++ = (char)records->payload[j];
+
+				if (records->type == 0x55 && j == 0)
+				{
+					display_uri_prefix(records->payload[j]);
+				}
+				else
+				{
+					*result++ = (char)records->payload[j];
+				}
 			}
 
 			*result++ = '\r';
@@ -401,6 +409,11 @@ static void display_records(Record* records, DWORD length, int level)
 	}
 
 	free(indent);
+}
+
+static void display_uri_prefix(byte prefix)
+{
+
 }
 
 /****************************************************************/
@@ -1011,7 +1024,10 @@ static void read(void)
 		int valid_content = (io_data[1] << 8) + io_data[2];
 		int read_cycles = valid_content / MLe;
 		int offset = 0;
+
 		byte* NDEF_data = (byte*)malloc(sizeof(byte) * (valid_content + 2));
+		*NDEF_data++ = io_data[1];
+		*NDEF_data++ = io_data[2];
 
 		if (!NDEF_data)
 		{
@@ -1023,7 +1039,7 @@ static void read(void)
 
 		for (int i = 0; i < read_cycles; i++)
 		{
-			offset = MLe * i;
+			offset = MLe * i + 2;
 
 			// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
 			if (!nfc_forum_type_4_command_varargs(READ_BINARY, "NDEF", &result, &length, io_data, 5,
@@ -1046,7 +1062,7 @@ static void read(void)
 			NDEF_data += MLe;
 		}
 
-		offset = MLe * read_cycles;
+		offset = MLe * read_cycles + 2;
 
 		// Length:5; CLA:00 INS:B0 P1/P2:Offset Lc:- Data:- Le:MLe
 		if (!nfc_forum_type_4_command_varargs(READ_BINARY, "NDEF", &result, &length, io_data, 5,
@@ -1486,7 +1502,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 			if (data_length != 0 && data_length <= buffer_length * 2)
 			{
 				GetWindowText(write_field, data, data_length + 1);
-				printf("!!!!!!!!!!!!!!!!!!!!!!!! -----> %s", data);
+
 				if (data = str_to_hex(data))
 				{
 					display_data_string_to_hex(data, data_length / 2);
