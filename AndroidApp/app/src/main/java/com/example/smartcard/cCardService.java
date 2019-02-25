@@ -128,7 +128,6 @@ public class cCardService extends HostApduService {
             Log.d("FILE CONTENT", print(fileB));
 
             this.currentState.setFileContent(fileB);
-            this.currentState.readValidContentLength();
 
         } catch (FileNotFoundException e) {
             e.printStackTrace();

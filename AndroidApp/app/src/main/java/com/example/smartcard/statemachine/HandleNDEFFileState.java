@@ -21,7 +21,6 @@ public class HandleNDEFFileState implements ReadingState {
 
             Log.d(TAG_APDU, "Reading Big File");
 
-//            state.readValidContentLength();
             state.setState(new ReadNDEFFileState());
             return state.execute(commandApdu);
 
@@ -29,7 +28,6 @@ public class HandleNDEFFileState implements ReadingState {
 
             Log.d(TAG_APDU, "Updating File");
 
-//            state.readValidContentLength();
             state.setState(new UpdateNDEFFileState());
             return state.execute(commandApdu);
 

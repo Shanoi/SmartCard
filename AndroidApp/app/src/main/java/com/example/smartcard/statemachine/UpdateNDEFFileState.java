@@ -26,7 +26,7 @@ public class UpdateNDEFFileState implements ReadingState {
 
         Log.d(TAG_APDU, "/");
         Log.d(TAG_APDU, "/////////////////////////////////////////////");
-        Log.d(TAG_APDU, "//////////UPDATE FILE////////////////////////");
+        Log.d(TAG_APDU, "//////////UPDATE FILE///////////////5/////////");
         Log.d(TAG_APDU, "/////////////////////////////////////////////");
 
         int offset = (commandApdu[P1] & 0xFF) << 8 + commandApdu[P2] & 0xFF;

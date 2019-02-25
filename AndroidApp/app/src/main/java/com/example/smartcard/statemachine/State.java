@@ -3,6 +3,8 @@ package com.example.smartcard.statemachine;
 import android.content.Context;
 import android.util.Log;
 
+import static com.example.smartcard.HexaValues.CCFile.MLc;
+import static com.example.smartcard.HexaValues.CCFile.MLe;
 import static com.example.smartcard.HexaValues.CCFile.NDEFFile;
 
 public class State {
@@ -79,21 +81,7 @@ public class State {
     }
 
     public int getValidContentLength() {
-        return validContentLength;
-    }
-
-    public void readValidContentLength() {
-
-        int a = (int) (fileContent[0] << 8);
-        int b = (int) (fileContent[1]);
-
-        Log.d(TAG_APDU, "" + fileContent[0]);
-        Log.d(TAG_APDU, "" + fileContent[1]);
-        Log.d(TAG_APDU, "" + a);
-        Log.d(TAG_APDU, "" + b);
-
-        validContentLength = a + b;
-
+        return fileContent.length;
     }
 
     public Context getContext() {

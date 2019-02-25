@@ -24,7 +24,7 @@ public class ReadNDEFFileState implements ReadingState {
         Log.d(TAG_APDU, "//////////READ NDEF FILE/////////////////////");
         Log.d(TAG_APDU, "/////////////////////////////////////////////");
 
-        int offset = (commandApdu[P1] & 0xFF) << 8 + commandApdu[P2] & 0xFF;
+        int offset = (int) ((commandApdu[P1] & 0xFF) << 8) + (int) (commandApdu[P2] & 0xFF);
 
         int length = commandApdu[LC] & 0xFF;
 
@@ -46,19 +46,17 @@ public class ReadNDEFFileState implements ReadingState {
         int mle = a + b;
 
         if (length > mle) {
-
             Log.d(TAG_APDU, "LE INCORRECT");
             return LE_INCORRECT;
-
         }
 
         byte[] content = new byte[length];
         byte[] file = state.getFileContent();
 
-        for (int i = offset; i < length; i++) {
-            Log.d(TAG_APDU, "COPY");
+        for (int i = offset; i < length + offset; i++) {
+            Log.d(TAG_APDU, "COPY " + offset + " " + i);
+            Log.d(TAG_APDU, "" + print(new byte[] {file[i]}));
             content[i - offset] = file[i];
-
         }
 
         if (state.getValidContentLength() == offset + length) {
@@ -67,7 +65,8 @@ public class ReadNDEFFileState implements ReadingState {
             state.setFileSelected(false);
         }
 
-        Log.d(TAG_APDU, "OK CODE");
+        //Log.d(TAG_APDU, "OK CODE " + print(concateByteArray(content, OK_CODE)));
+        Log.d(TAG_APDU, "OK CODE ");
         return concateByteArray(content, OK_CODE);
 
     }
