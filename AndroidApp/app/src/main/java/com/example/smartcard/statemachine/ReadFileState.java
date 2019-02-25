@@ -19,8 +19,12 @@ public class ReadFileState implements ReadingState {
     @Override
     public byte[] apply(State state, byte[] commandApdu) {
 
+        Log.d(TAG_APDU, "/");
+        Log.d(TAG_APDU, "/////////////////////////////////////////////");
+        Log.d(TAG_APDU, "//////////READ FILE//////////////////////////");
+        Log.d(TAG_APDU, "/////////////////////////////////////////////");
+
         Log.d(TAG_APDU, "File selected ?" + state.isFileSelected());
-        Log.d("Command received !!!!!", print(commandApdu));
 
         if (state.isFileSelected()) {
 
@@ -36,16 +40,16 @@ public class ReadFileState implements ReadingState {
 
             }
 
-            if (Arrays.equals(state.getCurrentFile(), new byte[]{(byte) 0x81, (byte) 0x01})) {
-
-                Log.d(TAG_APDU, "Reading Big File");
-
-                state.readValidContentLength();
-                state.setState(new ReadNDEFFileState());
-
-                return state.execute(commandApdu);
-
-            }
+//            if (Arrays.equals(state.getCurrentFile(), new byte[]{(byte) 0x81, (byte) 0x01})) {
+//
+//                Log.d(TAG_APDU, "Reading Big File");
+//
+//                state.readValidContentLength();
+//                state.setState(new ReadNDEFFileState());
+//
+//                return state.execute(commandApdu);
+//
+//            }
 
 //            return P1_2_INCORRECT_READUPDATE;
 

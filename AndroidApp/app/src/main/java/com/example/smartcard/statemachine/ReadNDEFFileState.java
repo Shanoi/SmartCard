@@ -19,7 +19,10 @@ public class ReadNDEFFileState implements ReadingState {
     @Override
     public byte[] apply(State state, byte[] commandApdu) {
 
-        Log.d(TAG_APDU, "Command Received : " + print(commandApdu));
+        Log.d(TAG_APDU, "/");
+        Log.d(TAG_APDU, "/////////////////////////////////////////////");
+        Log.d(TAG_APDU, "//////////READ NDEF FILE/////////////////////");
+        Log.d(TAG_APDU, "/////////////////////////////////////////////");
 
         int offset = (commandApdu[P1] & 0xFF) << 8 + commandApdu[P2] & 0xFF;
 
@@ -50,14 +53,13 @@ public class ReadNDEFFileState implements ReadingState {
         }
 
         byte[] content = new byte[length];
-        byte[] file = state.getFile();
+        byte[] file = state.getFileContent();
 
         for (int i = offset; i < length; i++) {
-
+            Log.d(TAG_APDU, "COPY");
             content[i - offset] = file[i];
 
         }
-
 
         if (state.getValidContentLength() == offset + length) {
             Log.d(TAG_APDU, "Finished Reading File");

@@ -1,15 +1,8 @@
 package com.example.smartcard.statemachine;
 
+import android.content.Context;
 import android.util.Log;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Map;
-
-import static com.example.smartcard.HexaValues.APDUOffset.P1;
-import static com.example.smartcard.HexaValues.APDUOffset.P2;
 import static com.example.smartcard.HexaValues.CCFile.NDEFFile;
 
 public class State {
@@ -21,15 +14,22 @@ public class State {
     private byte[] currentFile;
     private boolean fileSelected;
 
-    private byte[] file;
+    private byte[] fileContent;
     private int validContentLength;
 
     private static final String TAG_APDU = "STATE";
 
-    public State(ReadingState state) {
+    private Context context;
+
+    public State(ReadingState state, Context context) {
         this.state = state;
         applicationSelected = false;
         this.validContentLength = 0;
+        this.context = context;
+//        int a = (int) (fileContent[0] << 8);
+//        int b = (int) (fileContent[1]);
+//
+//        validContentLength = a + b;
     }
 
     public ReadingState getState() {
@@ -64,12 +64,18 @@ public class State {
         return fileSelected;
     }
 
-    public byte[] getFile() {
-        return file;
+    public byte[] getFileContent() {
+        return fileContent;
     }
 
-    public void setFile(byte[] file) {
-        this.file = file;
+    public void setFileContent(byte[] fileContent) {
+        this.fileContent = fileContent;
+    }
+
+    public void setFileContent(byte[] content, int offset) {
+
+        System.arraycopy(content, 0, fileContent, offset + 0, content.length);
+
     }
 
     public int getValidContentLength() {
@@ -78,16 +84,20 @@ public class State {
 
     public void readValidContentLength() {
 
-        int a = (int) (NDEFFile[4] << 8);
-        int b = (int) (NDEFFile[5]);
+        int a = (int) (fileContent[0] << 8);
+        int b = (int) (fileContent[1]);
 
-        Log.d(TAG_APDU, "" + file[0]);
-        Log.d(TAG_APDU, "" + file[1]);
+        Log.d(TAG_APDU, "" + fileContent[0]);
+        Log.d(TAG_APDU, "" + fileContent[1]);
         Log.d(TAG_APDU, "" + a);
         Log.d(TAG_APDU, "" + b);
 
         validContentLength = a + b;
 
+    }
+
+    public Context getContext() {
+        return context;
     }
 
     public byte[] execute(byte[] commandApdu) {

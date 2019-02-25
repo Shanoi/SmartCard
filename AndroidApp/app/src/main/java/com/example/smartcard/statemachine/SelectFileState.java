@@ -14,6 +14,11 @@ public class SelectFileState implements ReadingState {
     @Override
     public byte[] apply(State state, byte[] commandApdu) {
 
+        Log.d(TAG_APDU, "/");
+        Log.d(TAG_APDU, "/////////////////////////////////////////////");
+        Log.d(TAG_APDU, "//////////SELECT FILE////////////////////////");
+        Log.d(TAG_APDU, "/////////////////////////////////////////////");
+
         if (commandApdu[P1] == (byte) 0x04) {
 
             Log.d(TAG_APDU, "No compliante state");
@@ -39,7 +44,7 @@ public class SelectFileState implements ReadingState {
 
             state.setFileSelected(true);
             state.setCurrentFile(new byte[]{(byte) 0x81, (byte) 0x01});
-            state.setState(new ReadFileState());
+            state.setState(new HandleNDEFFileState());
 
             Log.d(TAG_APDU, "OK CODE");
             return OK_CODE;

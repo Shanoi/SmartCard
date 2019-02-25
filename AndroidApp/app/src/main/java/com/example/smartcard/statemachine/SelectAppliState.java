@@ -17,6 +17,11 @@ public class SelectAppliState implements ReadingState {
     @Override
     public byte[] apply(State state, byte[] commandApdu) {
 
+        Log.d(TAG_APDU, "/");
+        Log.d(TAG_APDU, "/////////////////////////////////////////////");
+        Log.d(TAG_APDU, "//////////SELECT APPLI///////////////////////");
+        Log.d(TAG_APDU, "/////////////////////////////////////////////");
+
         if (commandApdu[P2] != (byte) 0x00) {
 
             Log.d(TAG_APDU, "P1 / P2 incorrect");

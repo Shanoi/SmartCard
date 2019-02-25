@@ -13,7 +13,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 
 import static com.example.smartcard.HexaValues.APDUOffset.CLA;
 import static com.example.smartcard.HexaValues.APDUOffset.INS;
@@ -97,7 +96,7 @@ public class cCardService extends HostApduService {
 
         super.onCreate();
 
-        currentState = new State(new InitialState());
+        currentState = new State(new InitialState(), getBaseContext());
 
         File file = new File(getBaseContext().getCacheDir(), "NDEFFile");
         FileOutputStream outputStream;
@@ -108,7 +107,7 @@ public class cCardService extends HostApduService {
             file.createNewFile();
             outputStream = new FileOutputStream(file, false);
 //            003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348
-            outputStream.write(hexStringToByteArray("003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746F697265510008504F4C5954454348065A5FC8CFFE7215A6F393B2113905A1898C849C533054E96D257487946BE6750DBEA971D6A679BDF09B9A5B179D0B4990348A4559D99E9173CEBF2F9B14311E5767B019204F7F66F744A003624612AEDADDD5EDA481A53A7A76C5D8E5BC37825D0FB6C227B3CA0E41A8EBAC68EE5C56E185DB96AA2AABE2C41F1080EC653E2B64B8016A2D5CD0B74851F1546F9763FF2B2E263EB1D2F68BCBC71629360D88D3AE60071378041B5F4EF93CB9B93F69A732922CA3FB7BFC3315701D8D3D728F7CB50952777EAD210899A24261C0E8B450383B334B022347981C186736431A9524BCB158208555286C9F4A490A0A"));
+            outputStream.write(hexStringToByteArray("003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348"));
             outputStream.close();
             Log.d(TAG_APDU, "File CREATED");
         } catch (Exception e) {
@@ -128,7 +127,8 @@ public class cCardService extends HostApduService {
             }
             Log.d("FILE CONTENT", print(fileB));
 
-            this.currentState.setFile(fileB);
+            this.currentState.setFileContent(fileB);
+            this.currentState.readValidContentLength();
 
         } catch (FileNotFoundException e) {
             e.printStackTrace();
