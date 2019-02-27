@@ -29,12 +29,12 @@ public class ReadNDEFFileState implements ReadingState {
         int length = commandApdu[LC] & 0xFF;
 
         Log.d(TAG_APDU, "OFFSET + LEN = " + offset + " " + length);
-        Log.d(TAG_APDU, "Valid Length = " + state.getValidContentLength());
+        Log.d(TAG_APDU, "Valid Length = " + state.getFile().getCurrentLength());
 
-        if (offset + length > state.getValidContentLength()) {
+        if (offset + length > state.getFile().getCurrentLength()) {
 
-            state.setFileSelected(false);
-            state.setState(new InitialState());
+//            state.setFileSelected(false);
+//            state.setState(new InitialState());
             Log.d(TAG_APDU, "OFFSET LE INCORRECT");
             return OFFSET_LE_INCORRECT;
 
@@ -51,19 +51,24 @@ public class ReadNDEFFileState implements ReadingState {
         }
 
         byte[] content = new byte[length];
-        byte[] file = state.getFileContent();
+        byte[] file = state.getFile().getContent();
 
         for (int i = offset; i < length + offset; i++) {
-            Log.d(TAG_APDU, "COPY " + offset + " " + i);
-            Log.d(TAG_APDU, "" + print(new byte[] {file[i]}));
             content[i - offset] = file[i];
         }
 
-        if (state.getValidContentLength() == offset + length) {
-            Log.d(TAG_APDU, "Finished Reading File");
-            state.setState(new InitialState());
-            state.setFileSelected(false);
-        }
+        /*
+        Dans le fichier cCardService, si 0xB0, on sait qu'on est en lecture donc on
+        set l'état en lecture si il ne l'est pas déjà, si on change d'état on reset des flags ...
+        Même chose pour update
+         */
+
+
+//        if (state.getFile().getCurrentLength() == offset + length) {
+//            Log.d(TAG_APDU, "Finished Reading File");
+//            state.setState(new InitialState());
+//            state.setFileSelected(false);
+//        }
 
         //Log.d(TAG_APDU, "OK CODE " + print(concateByteArray(content, OK_CODE)));
         Log.d(TAG_APDU, "OK CODE ");

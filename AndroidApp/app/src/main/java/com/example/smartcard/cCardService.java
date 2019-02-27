@@ -20,6 +20,7 @@ import static com.example.smartcard.HexaValues.ReturnCode.CLA_UNKNOWN;
 import static com.example.smartcard.HexaValues.ReturnCode.INS_UNKNOWN;
 import static com.example.smartcard.HexaValues.ReturnCode.NO_COMPLIANT_STATE;
 import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
+import static com.example.smartcard.Utility.hexStringToByteArray;
 import static com.example.smartcard.Utility.print;
 
 public class cCardService extends HostApduService {
@@ -46,7 +47,6 @@ public class cCardService extends HostApduService {
         if (Arrays.asList(authorizedINS).contains(commandApdu[INS])) {
 
             Log.d(TAG_APDU, "INS Unknown");
-
             return INS_UNKNOWN;
 
         }
@@ -54,6 +54,9 @@ public class cCardService extends HostApduService {
         if (commandApdu[INS] == (byte) 0xA4) {
 
             Log.d(TAG_APDU, "State Machine STATE A4");
+
+            currentState.setState(new InitialState());
+            currentState.getFile().saveFile();
 
             return currentState.execute(commandApdu);
 
@@ -96,56 +99,50 @@ public class cCardService extends HostApduService {
 
         super.onCreate();
 
-        currentState = new State(new InitialState(), getBaseContext());
+        currentState = new State(new InitialState(), getBaseContext(), hexStringToByteArray("003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348"), "NDEFFile");
 
-        File file = new File(getBaseContext().getCacheDir(), "NDEFFile");
-        FileOutputStream outputStream;
+        currentState.getFile().saveFile();
 
-        Log.d(TAG_APDU, "COUCOU");
-
-        try {
-            file.createNewFile();
-            outputStream = new FileOutputStream(file, false);
-//            003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348
-            outputStream.write(hexStringToByteArray("003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348"));
-            outputStream.close();
-            Log.d(TAG_APDU, "File CREATED");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        try {
-
-            FileInputStream f = new FileInputStream(file);
-            byte[] fileB = new byte[f.available()];
-
-            int index = 0;
-            while (f.available() != 0){
-
-                fileB[index] = (byte) f.read();
-                index++;
-            }
-            Log.d("FILE CONTENT", print(fileB));
-
-            this.currentState.setFileContent(fileB);
-
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+//        File file = new File(getBaseContext().getCacheDir(), "NDEFFile");
+//        FileOutputStream outputStream;
+//
+//        Log.d(TAG_APDU, "COUCOU");
+//
+//        try {
+//            file.createNewFile();
+//            outputStream = new FileOutputStream(file, false);
+////            003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348
+//            outputStream.write(hexStringToByteArray("003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348"));
+//            outputStream.close();
+//            Log.d(TAG_APDU, "File CREATED");
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//
+//        try {
+//
+//            FileInputStream f = new FileInputStream(file);
+//            byte[] fileB = new byte[f.available()];
+//
+//            int index = 0;
+//            while (f.available() != 0){
+//
+//                fileB[index] = (byte) f.read();
+//                index++;
+//            }
+//            Log.d("FILE CONTENT", print(fileB));
+//
+//            this.currentState.setFileContent(fileB);
+//
+//        } catch (FileNotFoundException e) {
+//            e.printStackTrace();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
 
     }
 
-    private byte[] hexStringToByteArray(String s) {
-        byte[] b = new byte[s.length() / 2];
-        for (int i = 0; i < b.length; i++) {
-            int index = i * 2;
-            int v = Integer.parseInt(s.substring(index, index + 2), 16);
-            b[i] = (byte) v;
-        }
-        return b;
-    }
+
 
 
 

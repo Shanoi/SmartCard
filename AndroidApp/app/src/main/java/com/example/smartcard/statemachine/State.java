@@ -3,6 +3,8 @@ package com.example.smartcard.statemachine;
 import android.content.Context;
 import android.util.Log;
 
+import com.example.smartcard.NDEFFile;
+
 import static com.example.smartcard.HexaValues.CCFile.MLc;
 import static com.example.smartcard.HexaValues.CCFile.MLe;
 import static com.example.smartcard.HexaValues.CCFile.NDEFFile;
@@ -16,17 +18,20 @@ public class State {
     private byte[] currentFile;
     private boolean fileSelected;
 
-    private byte[] fileContent;
-    private int validContentLength;
+//    private byte[] fileContent;
+//    private int validContentLength;
+
+    private NDEFFile file;
 
     private static final String TAG_APDU = "STATE";
 
     private Context context;
 
-    public State(ReadingState state, Context context) {
+    public State(ReadingState state, Context context, byte[] content, String filename) {
         this.state = state;
         applicationSelected = false;
-        this.validContentLength = 0;
+//        this.validContentLength = 0;
+        this.file = new NDEFFile(content, filename, context);
         this.context = context;
 //        int a = (int) (fileContent[0] << 8);
 //        int b = (int) (fileContent[1]);
@@ -66,22 +71,31 @@ public class State {
         return fileSelected;
     }
 
-    public byte[] getFileContent() {
-        return fileContent;
+//    public byte[] getFileContent() {
+//        return fileContent;
+//    }
+
+//    public void setFileContent(byte[] fileContent) {
+//        this.fileContent = fileContent;
+//    }
+
+//    public void setFileContent(byte[] content, int offset) {
+//
+//        System.arraycopy(content, 0, fileContent, offset + 0, content.length);
+//
+//    }
+//
+//    public int getValidContentLength() {
+//        return fileContent.length;
+//    }
+
+
+    public NDEFFile getFile() {
+        return file;
     }
 
-    public void setFileContent(byte[] fileContent) {
-        this.fileContent = fileContent;
-    }
-
-    public void setFileContent(byte[] content, int offset) {
-
-        System.arraycopy(content, 0, fileContent, offset + 0, content.length);
-
-    }
-
-    public int getValidContentLength() {
-        return fileContent.length;
+    public void setFile(NDEFFile file) {
+        this.file = file;
     }
 
     public Context getContext() {

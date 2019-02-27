@@ -4,6 +4,7 @@ import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.ArrayList;
 
 import static com.example.smartcard.HexaValues.APDUOffset.LC;
 import static com.example.smartcard.HexaValues.APDUOffset.P1;
@@ -12,7 +13,6 @@ import static com.example.smartcard.HexaValues.CCFile.MLc;
 import static com.example.smartcard.HexaValues.ReturnCode.LC_INCORRECT;
 import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
 import static com.example.smartcard.HexaValues.ReturnCode.P1_2_INCORRECT_READUPDATE;
-import static com.example.smartcard.Utility.print;
 
 public class UpdateNDEFFileState implements ReadingState {
 
@@ -24,9 +24,11 @@ public class UpdateNDEFFileState implements ReadingState {
     @Override
     public byte[] apply(State state, byte[] commandApdu) {
 
+        ArrayList<Integer> al = new ArrayList<>();
+
         Log.d(TAG_APDU, "/");
         Log.d(TAG_APDU, "/////////////////////////////////////////////");
-        Log.d(TAG_APDU, "//////////UPDATE FILE///////////////5/////////");
+        Log.d(TAG_APDU, "//////////UPDATE FILE////////////////////////");
         Log.d(TAG_APDU, "/////////////////////////////////////////////");
 
         int offset = (commandApdu[P1] & 0xFF) << 8 + commandApdu[P2] & 0xFF;
@@ -43,8 +45,8 @@ public class UpdateNDEFFileState implements ReadingState {
             Log.d(TAG_APDU, "LC INCORRECT");
             return LC_INCORRECT;
         }
-
-        if (offset + incomingLC > state.getValidContentLength()) {
+/////////////////////////////////////////////////////////////////////////////
+        if (offset + incomingLC > state.getFile().getMaxLength()) {
             state.setFileSelected(false);
             state.setState(new InitialState());
             Log.d(TAG_APDU, "P1 P2 INCORRECT READ / UPDATE INCORRECT");
@@ -52,13 +54,13 @@ public class UpdateNDEFFileState implements ReadingState {
         }
 
         if (firstUpdate) {
-            lengthToWrite = (commandApdu[5] & 0xFF) << 8 + commandApdu[6] & 0xFF;
+            lengthToWrite = (int) ((commandApdu[5] & 0xFF) << 8) + (int) (commandApdu[6] & 0xFF);
             lengthToWrite += 2;
             int aa = (commandApdu[5] & 0xFF) << 8;
             int bb =  commandApdu[6] & 0xFF;
-            Log.d(TAG_APDU, "5 = " + aa + "   " + bb);
+            Log.d(TAG_APDU, "length to write = " + aa + "   " + bb);
             Log.d(TAG_APDU, "UPDATE LENGTH TO WRITE : " + lengthToWrite);
-            state.setFileContent(new byte[lengthToWrite]);
+//            state.setFileContent(new byte[lengthToWrite]);
             firstUpdate = false;
         }
 
@@ -66,7 +68,7 @@ public class UpdateNDEFFileState implements ReadingState {
 
         System.arraycopy(commandApdu, 5, data, 0, incomingLC);
 
-        state.setFileContent(data, offset);
+//        state.setFileContent(data, offset);
 
         if (offset + incomingLC == lengthToWrite) {
             state.setState(new InitialState());
@@ -77,7 +79,7 @@ public class UpdateNDEFFileState implements ReadingState {
 
             try {
                 outputStream = new FileOutputStream(file, false);
-                outputStream.write(state.getFileContent());
+//                outputStream.write(state.getFileContent());
                 outputStream.close();
                 Log.d(TAG_APDU, "FILE HAS BEEN WRITTEN");
             } catch (Exception e) {

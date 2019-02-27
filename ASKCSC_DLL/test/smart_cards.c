@@ -884,6 +884,8 @@ static Record* parse_ndef_file(byte* data, int* total_records)
 				status = -2;
 			}
 
+			(*total_records)++;
+			records++;
 			break;
 		}
 
@@ -894,7 +896,7 @@ static Record* parse_ndef_file(byte* data, int* total_records)
 		records += *total_records;
 	}
 
-	if (!status)
+	if (status <= 0)
 	{
 		printf("NDEF Data corrupted! Couldn't parse all the data.\n");
 
@@ -946,6 +948,8 @@ static Record* parse_smart_poster(byte* data, int data_length, char* total_recor
 				status = -2;
 			}
 
+			(*total_records)++;
+			records++;
 			break;
 		}
 
