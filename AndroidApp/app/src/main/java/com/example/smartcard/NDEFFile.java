@@ -27,8 +27,10 @@ public class NDEFFile {
 
     public NDEFFile(byte[] content, String filename, Context context) {
         this.currentLength = content.length;
-        this.content = content;
+//        this.content = content;
         this.maxLength = 512;
+        this.content = new byte[this.maxLength];
+        System.arraycopy(content, 0, this.content, 0, content.length);
         this.filename = filename;
         this.file = new File(context.getCacheDir(), "NDEFFile");
     }
@@ -38,8 +40,8 @@ public class NDEFFile {
     }
 
     public void setElement(byte element, int index) {
-        if (index >= currentLength) {
-            currentLength = index - 1;
+        if (index + 1 > currentLength) {
+            currentLength = index + 1;
         }
         content[index] = element;
     }
