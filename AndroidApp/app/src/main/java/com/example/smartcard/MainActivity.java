@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,6 +29,8 @@ public class MainActivity extends AppCompatActivity {
 
         File file = new File(getBaseContext().getCacheDir(), "NDEFFile");
 
+        TextView textView = (TextView) findViewById(R.id.textViewContentFile);
+
         try {
 
             FileInputStream f = new FileInputStream(file);
@@ -40,6 +43,8 @@ public class MainActivity extends AppCompatActivity {
                 index++;
             }
             Log.d("FILE CONTENT", print(fileB));
+
+            textView.setText(print(fileB));
 
         } catch (FileNotFoundException e) {
             e.printStackTrace();

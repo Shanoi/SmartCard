@@ -11,8 +11,8 @@ import static com.example.smartcard.HexaValues.APDUOffset.P1;
 import static com.example.smartcard.HexaValues.APDUOffset.P2;
 import static com.example.smartcard.HexaValues.CCFile.MLc;
 import static com.example.smartcard.HexaValues.ReturnCode.LC_INCORRECT;
+import static com.example.smartcard.HexaValues.ReturnCode.OFFSET_LC_INCORRECT;
 import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
-import static com.example.smartcard.HexaValues.ReturnCode.P1_2_INCORRECT_READUPDATE;
 import static com.example.smartcard.Utility.print;
 
 public class UpdateNDEFFileState implements ReadingState {
@@ -51,7 +51,7 @@ public class UpdateNDEFFileState implements ReadingState {
 //            state.setFileSelected(false);
 //            state.setState(new InitialState());
             Log.d(TAG_APDU, "P1 P2 INCORRECT READ / UPDATE INCORRECT");
-            return P1_2_INCORRECT_READUPDATE;
+            return OFFSET_LC_INCORRECT;
         }
 
 //        if (firstUpdate) {

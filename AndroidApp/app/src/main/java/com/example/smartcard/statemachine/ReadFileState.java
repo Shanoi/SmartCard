@@ -4,12 +4,9 @@ import android.util.Log;
 
 import java.util.Arrays;
 
-import static com.example.smartcard.HexaValues.APDUOffset.P1;
-import static com.example.smartcard.HexaValues.APDUOffset.P2;
 import static com.example.smartcard.HexaValues.CCFile.ccFile;
 import static com.example.smartcard.HexaValues.ReturnCode.NO_COMPLIANT_STATE;
 import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
-import static com.example.smartcard.HexaValues.ReturnCode.P1_2_INCORRECT_READUPDATE;
 import static com.example.smartcard.Utility.concateByteArray;
 
 public class ReadFileState implements ReadingState {
@@ -58,23 +55,6 @@ public class ReadFileState implements ReadingState {
         Log.d(TAG_APDU, "No compliant state");
 
         return NO_COMPLIANT_STATE;
-
-    }
-
-    private String print(byte[] bytes) {
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("[ ");
-
-        for (byte b : bytes) {
-
-            sb.append(String.format("0x%02X ", b));
-
-        }
-
-        sb.append("]");
-
-        return sb.toString();
 
     }
 

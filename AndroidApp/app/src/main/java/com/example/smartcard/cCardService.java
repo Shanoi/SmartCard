@@ -101,7 +101,7 @@ public class cCardService extends HostApduService {
 
         currentState = new State(new InitialState(), getBaseContext(), hexStringToByteArray("003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348"), "NDEFFile");
 
-        currentState.getFile().saveFile();
+//        currentState.getFile().saveFile();
 
 //        File file = new File(getBaseContext().getCacheDir(), "NDEFFile");
 //        FileOutputStream outputStream;
