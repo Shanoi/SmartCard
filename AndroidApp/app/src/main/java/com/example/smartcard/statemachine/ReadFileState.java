@@ -37,9 +37,6 @@ public class ReadFileState implements ReadingState {
 
             }
 
-
-//            return P1_2_INCORRECT_READUPDATE;
-
         }
 
         Log.d(TAG_APDU, "No compliant state");
