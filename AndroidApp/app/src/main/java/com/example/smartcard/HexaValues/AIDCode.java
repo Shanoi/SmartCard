@@ -1,5 +1,8 @@
 package com.example.smartcard.HexaValues;
 
+/**
+ * Class to have the AID code inside the application
+ */
 public class AIDCode {
 
     //        <aid-filter android:name="D2 76 00 00 85 01 01" />

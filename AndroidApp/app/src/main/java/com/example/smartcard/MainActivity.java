@@ -2,7 +2,6 @@ package com.example.smartcard;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
@@ -11,7 +10,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import static com.example.smartcard.Utility.print;
+import static com.example.smartcard.Utility.convertToString;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -23,9 +22,11 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * This method allows to display the content of the file on screen when the button is touched
+     * @param view
+     */
     public void onClick(View view) {
-
-        Log.d("MAIN", "Click");
 
         File file = new File(getBaseContext().getCacheDir(), "NDEFFile");
 
@@ -42,7 +43,6 @@ public class MainActivity extends AppCompatActivity {
                 fileB[index] = (byte) f.read();
                 index++;
             }
-            Log.d("FILE CONTENT", print(fileB));
 
             int length = (int) ((fileB[0] & 0xFF) << 8) + (int) (fileB[1] & 0xFF) + 2;
 
@@ -50,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
 
             System.arraycopy(fileB, 0, temp, 0, length);
 
-            textView.setText(print(temp));
+            textView.setText(convertToString(temp));
 
         } catch (FileNotFoundException e) {
             e.printStackTrace();

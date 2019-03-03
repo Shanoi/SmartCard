@@ -5,6 +5,9 @@ import android.util.Log;
 import static com.example.smartcard.HexaValues.APDUOffset.INS;
 import static com.example.smartcard.HexaValues.ReturnCode.INS_UNKNOWN;
 
+/**
+ * Class to handle the NDEF File. This class will either redirect to the reading or the updating of the NDEF File
+ */
 public class HandleNDEFFileState implements ReadingState {
 
     private static final String TAG_APDU = "HANDLE NDEF FILE";

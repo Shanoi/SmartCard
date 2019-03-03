@@ -2,6 +2,11 @@ package com.example.smartcard;
 
 public class Utility {
 
+    /**
+     * Function used to concatenate byte arrays to return them to the card reader.
+     * @param arrays The arrays to concatenate
+     * @return The arrays concatenated
+     */
     public static byte[] concateByteArray(byte[]... arrays) {
 
         int length = 0;
@@ -26,7 +31,12 @@ public class Utility {
 
     }
 
-    public static String print(byte[] bytes) {
+    /**
+     * Function to convert a byte array into hexadecimal string
+     * @param bytes
+     * @return
+     */
+    public static String convertToString(byte[] bytes) {
 
         StringBuilder sb = new StringBuilder();
         sb.append("[ ");

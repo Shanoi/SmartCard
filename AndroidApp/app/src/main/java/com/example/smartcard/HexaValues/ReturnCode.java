@@ -1,5 +1,8 @@
 package com.example.smartcard.HexaValues;
 
+/**
+ * Class to represent the value of the different possible return code for an APDU command
+ */
 public class ReturnCode {
 
     public static final byte[] OK_CODE = new byte[]{(byte) 0x90, (byte) 0x00};

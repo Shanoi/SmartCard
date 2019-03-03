@@ -16,7 +16,7 @@ import static com.example.smartcard.HexaValues.ReturnCode.INS_UNKNOWN;
 import static com.example.smartcard.HexaValues.ReturnCode.NO_COMPLIANT_STATE;
 import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
 import static com.example.smartcard.Utility.hexStringToByteArray;
-import static com.example.smartcard.Utility.print;
+import static com.example.smartcard.Utility.convertToString;
 
 public class cCardService extends HostApduService {
 
@@ -29,7 +29,7 @@ public class cCardService extends HostApduService {
     @Override
     public byte[] processCommandApdu(byte[] commandApdu, Bundle extras) {
 
-        Log.d("Command received", print(commandApdu));
+        Log.d("Command received", convertToString(commandApdu));
 
         if (commandApdu[CLA] != (byte) 0x00) {
 
@@ -50,6 +50,7 @@ public class cCardService extends HostApduService {
 
             Log.d(TAG_APDU, "State Machine STATE A4");
 
+//          Whenever we encounter the selection command, we reset the state machine
             currentState.setState(new InitialState());
             currentState.getFile().saveFile();
 
@@ -94,74 +95,9 @@ public class cCardService extends HostApduService {
 
         super.onCreate();
 
-        currentState = new State(new InitialState(), getBaseContext(), hexStringToByteArray("003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348"), "NDEFFile");
-
-//        currentState.getFile().saveFile();
-
-//        File file = new File(getBaseContext().getCacheDir(), "NDEFFile");
-//        FileOutputStream outputStream;
-//
-//        Log.d(TAG_APDU, "COUCOU");
-//
-//        try {
-//            file.createNewFile();
-//            outputStream = new FileOutputStream(file, false);
-////            003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348
-//            outputStream.write(hexStringToByteArray("003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348"));
-//            outputStream.close();
-//            Log.d(TAG_APDU, "File CREATED");
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//
-//        try {
-//
-//            FileInputStream f = new FileInputStream(file);
-//            byte[] fileB = new byte[f.available()];
-//
-//            int index = 0;
-//            while (f.available() != 0){
-//
-//                fileB[index] = (byte) f.read();
-//                index++;
-//            }
-//            Log.d("FILE CONTENT", print(fileB));
-//
-//            this.currentState.setFileContent(fileB);
-//
-//        } catch (FileNotFoundException e) {
-//            e.printStackTrace();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
+//      Initialization of the state. We give a default data to the card, this will be used if there is no file previously stored
+        currentState = new State(new InitialState(), getBaseContext(), hexStringToByteArray("003191010A55016170706C652E636F6D110114540266724C612062656C6C6520686973746f697265510008504F4C5954454348"), "NDEFFile");
 
     }
 
-
-
-
-
-//    private byte[] hexStringToByteArray(String s) {
-//        int len = s.length();
-//        byte[] data = new byte[len / 2];
-//        for (int i = 0; i < len; i += 2) {
-//            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
-//                    + Character.digit(s.charAt(i + 1), 16));
-//        }
-//        return data;
-//    }
-
 }
-
-// Faire une machine d'état
-
-// Créer un CC file en dur et ne plus y toucher
-// Le NDEF file doit être créé dans la mémoire interne et contiendra les infos que le lecteur récupère
-//   --> gestion au onCreate de classe service
-//      --> si existe l'utiliser            Dans la mémoire de l'appli
-//      --> si n'existe pas le créer
-// 6981
-// 6986
-// 6A82
-
-// MLe / MLc et NDEF

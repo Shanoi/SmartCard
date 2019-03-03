@@ -1,5 +1,8 @@
 package com.example.smartcard.HexaValues;
 
+/**
+ * Class to have the name of the different offset instead of having only a number
+ */
 public class APDUOffset {
 
     public static final int CLA = 0;

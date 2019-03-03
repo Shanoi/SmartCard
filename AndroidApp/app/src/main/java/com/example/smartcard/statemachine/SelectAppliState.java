@@ -10,6 +10,9 @@ import static com.example.smartcard.HexaValues.ReturnCode.LC_INCORRECT;
 import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
 import static com.example.smartcard.HexaValues.ReturnCode.P1_2_INCORRECT_SELECT;
 
+/**
+ * The class represents the state when we select the application
+ */
 public class SelectAppliState implements ReadingState {
 
     private static final String TAG_APDU = "Select Appli State APDU";
@@ -23,29 +26,20 @@ public class SelectAppliState implements ReadingState {
         Log.d(TAG_APDU, "/////////////////////////////////////////////");
 
         if (commandApdu[P2] != (byte) 0x00) {
-
             Log.d(TAG_APDU, "P1 / P2 incorrect");
-
             return P1_2_INCORRECT_SELECT;
-
         }
 
         if (commandApdu[LC] > 7 || commandApdu[4] < 5) {
-
             Log.d(TAG_APDU, "LC Incorrect");
-
             return LC_INCORRECT;
-
         }
 
         for (int i = 0; i < 7; i++) {
 
             if (commandApdu[5 + i] != AID1[i]) {
-
                 Log.d(TAG_APDU, "LID unknown");
-
                 return AID_LID_UNKNOWN;
-
             }
 
         }
