@@ -53,7 +53,7 @@ enum TNF {
 	NFC_Forum_External_Type, TNF_Unknown, Unchanged, Reserved
 };
 
-char* uri_prefix[] = { "http://www.", "https://www.", "http://", "https://", "tel:", "mailto:", 
+char* uri_prefix[] = { "", "http://www.", "https://www.", "http://", "https://", "tel:", "mailto:", 
 "ftp://anonymous:anonymous@", "ftp://ftp.", "ftps://", "sftp://", "smb://", "nfs://", "ftp://", 
 "dav://", "news:", "telnet://", "imap:", "rtsp://", "urn:", "pop:", "sip:", "sips:", "tftp:", 
 "btspp://", "btl2cap://", "btgoep://", "tcpobex://", "irdaobex://", "file://", "urn:epc:id:", 
