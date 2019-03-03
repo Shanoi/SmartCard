@@ -5,18 +5,27 @@ import android.util.Log;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
 import static com.example.smartcard.Utility.hexStringToByteArray;
-import static com.example.smartcard.Utility.print;
+import static com.example.smartcard.Utility.convertToString;
 
+/**
+ * This class is used to facilitate the management of the NDEF File by using arrays instead of using the file directly in memory
+ */
 public class NDEFFile {
 
     private static final String TAG_APDU = "NDEF FILE";
 
+    /**
+     * The current length occupied by the file
+     */
     private int currentLength = 0;
+
+    /**
+     * The maximum possible length of the NDEF File
+     */
     private int maxLength;
 
     private byte[] content;
@@ -27,15 +36,16 @@ public class NDEFFile {
 
     public NDEFFile(byte[] content, String filename, Context context) {
 
-//        this.content = content;
         this.maxLength = 512;
         this.content = new byte[this.maxLength];
 
         this.filename = filename;
-        this.file = new File(context.getCacheDir(), "NDEFFile");
+        this.file = new File(context.getCacheDir(), this.filename);
 
+//      We test if the file exists or not. If the file does not exist, a new one is created with
+//      a default content. Otherwise, the file currently in memory is retrieved.
         if (!this.file.exists()) {
-            Log.d(TAG_APDU, "FILE NOt EXISTS");
+            Log.d(TAG_APDU, "FILE NOT EXISTS, CREATING ONE");
             this.currentLength = content.length;
             System.arraycopy(content, 0, this.content, 0, content.length);
             saveFile();
@@ -74,7 +84,6 @@ public class NDEFFile {
 
         try {
             FileOutputStream outputStream = new FileOutputStream(file, false);
-//            003191010A55016170706C652E636F6D510114540266724C612062656C6C6520686973746f697265510008504F4C5954454348
 
             byte[] temp = new byte[currentLength];
 
@@ -97,32 +106,6 @@ public class NDEFFile {
 
     }
 
-    public String getFileContent() {
-
-        try {
-
-            FileInputStream f = new FileInputStream(file);
-            byte[] fileB = new byte[f.available()];
-
-            int index = 0;
-            while (f.available() != 0) {
-
-                fileB[index] = (byte) f.read();
-                index++;
-            }
-            Log.d(TAG_APDU, "FILE CONTENT " + print(fileB));
-
-            return print(fileB);
-
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return "Fail Read";
-    }
-
     private byte[] getContentFromMemory() throws IOException {
 
 
@@ -135,7 +118,7 @@ public class NDEFFile {
             fileB[index] = (byte) f.read();
             index++;
         }
-        Log.d("getContentFromMemory", print(fileB));
+        Log.d("getContentFromMemory", convertToString(fileB));
 
 
         return fileB;

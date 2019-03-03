@@ -9,6 +9,9 @@ import static com.example.smartcard.HexaValues.ReturnCode.NO_COMPLIANT_STATE;
 import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
 import static com.example.smartcard.Utility.concateByteArray;
 
+/**
+ * This class represents the state when the CCFile is read.
+ */
 public class ReadFileState implements ReadingState {
 
     private static final String TAG_APDU = "Read File State APDU";
@@ -21,8 +24,6 @@ public class ReadFileState implements ReadingState {
         Log.d(TAG_APDU, "//////////READ FILE//////////////////////////");
         Log.d(TAG_APDU, "/////////////////////////////////////////////");
 
-        Log.d(TAG_APDU, "File selected ?" + state.isFileSelected());
-
         if (state.isFileSelected()) {
 
             Log.d(TAG_APDU, "READ FILE STATE" + state.getCurrentFile());
@@ -31,22 +32,11 @@ public class ReadFileState implements ReadingState {
 
                 Log.d(TAG_APDU, "Reading CCFile");
                 state.setFileSelected(false);
-//                    state.setApplicationSelected(false);
                 state.setState(new InitialState());
                 return concateByteArray(ccFile(), OK_CODE);
 
             }
 
-//            if (Arrays.equals(state.getCurrentFile(), new byte[]{(byte) 0x81, (byte) 0x01})) {
-//
-//                Log.d(TAG_APDU, "Reading Big File");
-//
-//                state.readValidContentLength();
-//                state.setState(new ReadNDEFFileState());
-//
-//                return state.execute(commandApdu);
-//
-//            }
 
 //            return P1_2_INCORRECT_READUPDATE;
 

@@ -1,26 +1,37 @@
 package com.example.smartcard.statemachine;
 
 import android.content.Context;
-import android.util.Log;
 
 import com.example.smartcard.NDEFFile;
 
-import static com.example.smartcard.HexaValues.CCFile.MLc;
-import static com.example.smartcard.HexaValues.CCFile.MLe;
-import static com.example.smartcard.HexaValues.CCFile.NDEFFile;
-
+/**
+ * This class represents the current state of the emulated card
+ */
 public class State {
 
+    /**
+     * The current state
+     */
     private ReadingState state;
 
+    /**
+     * To know if the application has been selected
+     */
     private boolean applicationSelected;
 
+    /**
+     * The identifier of the current file
+     */
     private byte[] currentFile;
+
+    /**
+     * To know if a file is selected
+     */
     private boolean fileSelected;
 
-//    private byte[] fileContent;
-//    private int validContentLength;
-
+    /**
+     * The NDEF File that the application has selected
+     */
     private NDEFFile file;
 
     private static final String TAG_APDU = "STATE";
@@ -30,13 +41,8 @@ public class State {
     public State(ReadingState state, Context context, byte[] content, String filename) {
         this.state = state;
         applicationSelected = false;
-//        this.validContentLength = 0;
         this.file = new NDEFFile(content, filename, context);
         this.context = context;
-//        int a = (int) (fileContent[0] << 8);
-//        int b = (int) (fileContent[1]);
-//
-//        validContentLength = a + b;
     }
 
     public ReadingState getState() {
@@ -70,25 +76,6 @@ public class State {
     public boolean isFileSelected() {
         return fileSelected;
     }
-
-//    public byte[] getFileContent() {
-//        return fileContent;
-//    }
-
-//    public void setFileContent(byte[] fileContent) {
-//        this.fileContent = fileContent;
-//    }
-
-//    public void setFileContent(byte[] content, int offset) {
-//
-//        System.arraycopy(content, 0, fileContent, offset + 0, content.length);
-//
-//    }
-//
-//    public int getValidContentLength() {
-//        return fileContent.length;
-//    }
-
 
     public NDEFFile getFile() {
         return file;
