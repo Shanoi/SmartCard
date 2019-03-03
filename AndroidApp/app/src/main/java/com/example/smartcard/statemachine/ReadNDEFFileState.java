@@ -9,6 +9,7 @@ import static com.example.smartcard.HexaValues.CCFile.MLe;
 import static com.example.smartcard.HexaValues.ReturnCode.LE_INCORRECT;
 import static com.example.smartcard.HexaValues.ReturnCode.OFFSET_LE_INCORRECT;
 import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
+import static com.example.smartcard.HexaValues.ReturnCode.P1_2_INCORRECT_READUPDATE;
 import static com.example.smartcard.Utility.concateByteArray;
 
 /**
@@ -31,6 +32,11 @@ public class ReadNDEFFileState implements ReadingState {
 
         Log.d(TAG_APDU, "OFFSET + LEN = " + offset + " " + length);
         Log.d(TAG_APDU, "Valid Length = " + state.getFile().getCurrentLength());
+
+        if (offset > state.getFile().getMaxLength()) {
+            Log.d(TAG_APDU, "P1 P2 INCORRECT READ / UPDATE INCORRECT");
+            return P1_2_INCORRECT_READUPDATE;
+        }
 
         if (offset + length > state.getFile().getCurrentLength()) {
             Log.d(TAG_APDU, "OFFSET LE INCORRECT");

@@ -11,6 +11,7 @@ import static com.example.smartcard.HexaValues.CCFile.MLc;
 import static com.example.smartcard.HexaValues.ReturnCode.LC_INCORRECT;
 import static com.example.smartcard.HexaValues.ReturnCode.OFFSET_LC_INCORRECT;
 import static com.example.smartcard.HexaValues.ReturnCode.OK_CODE;
+import static com.example.smartcard.HexaValues.ReturnCode.P1_2_INCORRECT_READUPDATE;
 
 /**
  * This class handle the update of NDEF File
@@ -39,8 +40,13 @@ public class UpdateNDEFFileState implements ReadingState {
             return LC_INCORRECT;
         }
 
-        if (offset + incomingLC > state.getFile().getMaxLength()) {
+        if (offset > state.getFile().getMaxLength()){
             Log.d(TAG_APDU, "P1 P2 INCORRECT READ / UPDATE INCORRECT");
+            return P1_2_INCORRECT_READUPDATE;
+        }
+
+        if (offset + incomingLC > state.getFile().getMaxLength()) {
+            Log.d(TAG_APDU, "OFFSET LC INCORRECT");
             return OFFSET_LC_INCORRECT;
         }
 
