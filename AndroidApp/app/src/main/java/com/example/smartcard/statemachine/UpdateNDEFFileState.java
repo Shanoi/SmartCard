@@ -35,10 +35,12 @@ public class UpdateNDEFFileState implements ReadingState {
         int offset = (int) ((commandApdu[P1] & 0xFF) << 8) + (int) (commandApdu[P2] & 0xFF);
         int incomingLC = commandApdu[LC] & 0xFF;
 
-        int a = (int) (MLc[0] << 8);
-        int b = (int) (MLc[1]);
+//        int a = (int) (MLc[0] << 8);
+//        int b = (int) (MLc[1]);
+//
+//        int mlc = a + b;
 
-        int mlc = a + b;
+        int mlc = (int) ((MLc[0] & 0xFF) << 8) + (int) (MLc[1] & 0xFF);
 
         if (incomingLC > mlc) {
 //            state.setFileSelected(false);

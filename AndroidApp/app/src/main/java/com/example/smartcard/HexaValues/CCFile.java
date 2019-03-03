@@ -15,8 +15,8 @@ public class CCFile {
     public static final byte[] TRUENDEFFile = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x81, (byte) 0x01, (byte) 0x01, (byte) 0x20};
 
 
-    public static final byte[] MLe = new byte[]{(byte) 0x00, (byte) 0x3b};
-    public static final byte[] MLc = new byte[]{(byte) 0x00, (byte) 0x34};
+    public static final byte[] MLe = new byte[]{(byte) 0x00, (byte) 0xff};
+    public static final byte[] MLc = new byte[]{(byte) 0x00, (byte) 0xff};
     public static final byte[] NDEFFile = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x81, (byte) 0x01, (byte) 0x01, (byte) 0x20};
 
 

@@ -7,11 +7,6 @@ import android.util.Log;
 import com.example.smartcard.statemachine.InitialState;
 import com.example.smartcard.statemachine.State;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.Arrays;
 
 import static com.example.smartcard.HexaValues.APDUOffset.CLA;

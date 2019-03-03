@@ -29,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
 
         File file = new File(getBaseContext().getCacheDir(), "NDEFFile");
 
-        TextView textView = (TextView) findViewById(R.id.textViewContentFile);
+        TextView textView = findViewById(R.id.textViewContentFile);
 
         try {
 
@@ -37,14 +37,20 @@ public class MainActivity extends AppCompatActivity {
             byte[] fileB = new byte[f.available()];
 
             int index = 0;
-            while (f.available() != 0){
+            while (f.available() != 0) {
 
                 fileB[index] = (byte) f.read();
                 index++;
             }
             Log.d("FILE CONTENT", print(fileB));
 
-            textView.setText(print(fileB));
+            int length = (int) ((fileB[0] & 0xFF) << 8) + (int) (fileB[1] & 0xFF) + 2;
+
+            byte[] temp = new byte[length];
+
+            System.arraycopy(fileB, 0, temp, 0, length);
+
+            textView.setText(print(temp));
 
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -53,4 +59,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
     }
+
+
 }
