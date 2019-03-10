@@ -23,7 +23,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * This method allows to display the content of the file on screen when the button is touched
+     * This method allows to display the content of the file on screen when the button is pressed
      * @param view
      */
     public void onClick(View view) {

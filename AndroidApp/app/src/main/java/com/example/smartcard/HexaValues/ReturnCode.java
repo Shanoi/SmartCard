@@ -1,7 +1,7 @@
 package com.example.smartcard.HexaValues;
 
 /**
- * Class to represent the value of the different possible return code for an APDU command
+ * Class to represent the value of the different possible return codes for an APDU command
  */
 public class ReturnCode {
 
